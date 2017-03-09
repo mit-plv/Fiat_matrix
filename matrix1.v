@@ -401,15 +401,14 @@ Proof.
   intros v1 v2 M. 
   generalize dependent v2. 
   generalize dependent v1. 
-  induction M as [| v M' IHM]. 
-  - intros v1 v2. 
-    simpl. rewrite dot_commu. simpl. reflexivity. 
-  - intros v1 v2. destruct v1 eqn : eq. 
+  induction M as [| v M' IHM]; intros v1 v2. 
+  - simpl. rewrite dot_commu. reflexivity. 
+  - destruct v1 eqn : eq. 
     + simpl. unfold Vector_Matrix_mul. 
       assert (H : forall M, map (dot nil) M = repeat zero (length M)). 
-      { intros M. induction M as [| v3 M2 IHM2].
-        * simpl. reflexivity. 
-        * simpl. simpl in IHM2. rewrite IHM2. reflexivity.  }
+      { intros M. induction M as [| v3 M2 IHM2]; simpl in *.
+        * reflexivity. 
+        * rewrite IHM2. reflexivity.  }
       rewrite H. 
       assert (H2: forall n v, dot (repeat zero n) v = zero). 
       { intros n. induction n as [| n' IHn]. 

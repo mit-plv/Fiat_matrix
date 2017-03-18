@@ -4,25 +4,27 @@ Require Import Coq.Classes.Morphisms.
 Require Import Coq.setoid_ring.Ring.
 Require Import Coq.setoid_ring.Ring_theory.
 
-Module Type MatrixElem.
-  Parameter t : Type.
+Class MatrixElem :=
+  { MEt :> Type;
 
-  Parameter zero : t.
-  Parameter one : t.
+    MEzero : MEt;
+    MEone : MEt;
 
-  Parameter opp : t -> t.
-  Parameter plus : t -> t -> t.
-  Parameter minus : t -> t -> t.
-  Parameter times : t -> t -> t.
+    MEopp : MEt -> MEt;
+    MEplus : MEt -> MEt -> MEt;
+    MEminus : MEt -> MEt -> MEt;
+    MEtimes : MEt -> MEt -> MEt;
 
-  Axiom ring : ring_theory zero one plus times minus opp eq.
+    MEring : ring_theory MEzero MEone MEplus MEtimes MEminus MEopp eq }.
 
-  Module Import Notations.
-    Infix "*e" := times (at level 30).
-    Infix "+e" := plus (at level 60).
-    Infix "-e" := minus (at level 60).
-  End Notations.
-End MatrixElem.
+Infix "*e" := MEtimes (at level 40, left associativity) : ME_scope.
+Infix "+e" := MEplus (at level 50, left associativity) : ME_scope.
+Infix "-e" := MEminus (at level 50, left associativity) : ME_scope.
+Notation e0 := MEzero.
+Notation e1 := MEone.
+
+Open Scope ME_scope.
+Delimit Scope ME_scope with ME.
 
 Fixpoint fold_nat {A} (upto: nat) (reduce: A -> nat -> A) (zero: A) :=
   match upto with
@@ -90,15 +92,15 @@ Proof.
     intuition auto using pointwise_upto_decr.
 Qed.
 
-Module MatrixElemProperties (E: MatrixElem).
-  Import E.Notations.
+Notation sum k f := (fold_nat k (fun acc x => acc +e f x) e0).
 
-  Add Ring Et : E.ring.
+Section MatrixElemOps.
+  Context {ME: MatrixElem}.
 
-  Definition sum k f := fold_nat k (fun acc x => acc +e f x) E.zero.
+  Add Ring MatrixElemOpsEtRing : MEring.
 
-  Add Parametric Morphism k : (@sum k)
-      with signature (pointwise_relation _ (@eq E.t) ==> @eq E.t)
+  Add Parametric Morphism k : (fun f => sum k f)
+      with signature (pointwise_relation _ (@eq MEt) ==> @eq MEt)
         as sum_morphism.
   Proof.
     intros; apply fold_nat_morphism;
@@ -106,8 +108,8 @@ Module MatrixElemProperties (E: MatrixElem).
       intuition auto using f_equal.
   Qed.
 
-  Add Parametric Morphism k : (@sum k)
-      with signature (pointwise_upto k (@eq E.t) ==> @eq E.t)
+  Add Parametric Morphism k : (fun f => sum k f)
+      with signature (pointwise_upto k (@eq MEt) ==> @eq MEt)
         as sum_upto_morphism.
   Proof.
     intros; apply fold_nat_upto_morphism;
@@ -128,8 +130,7 @@ Module MatrixElemProperties (E: MatrixElem).
       a *e sum n f = sum n (fun x => a *e f x).
   Proof.
     unfold sum; induction n; simpl; intros;
-      ring_simplify; try rewrite IHn;
-        ring.
+    try rewrite <- IHn; ring.
   Qed.
 
   Lemma sum_multiply_r :
@@ -137,67 +138,81 @@ Module MatrixElemProperties (E: MatrixElem).
       sum n f *e a = sum n (fun x => f x *e a).
   Proof.
     unfold sum; induction n; simpl; intros;
-      ring_simplify; try rewrite IHn;
-        ring.
+      try rewrite <- IHn; ring.
   Qed.
+
+  Lemma sum_e0 :
+    forall n, (sum n (fun k => e0)) = e0.
+  Proof.
+    unfold sum; induction n; simpl; intros; try rewrite IHn; ring.
+  Qed.
+
+  Notation "Σ{ x } f" :=
+    (fold_nat _ (fun acc x => acc +e f) e0)
+      (at level 0, format "Σ{ x }  f").
 
   Lemma sum_swap :
     forall m n f,
       sum n (fun k => sum m (fun k' => f k' k)) =
       sum m (fun k => sum n (fun k' => f k k')).
   Proof.
-  Admitted.
-End MatrixElemProperties.
+    induction m; simpl; intros.
+    - rewrite (sum_e0 n); ring.
+    - rewrite !sum_distribute.
+      rewrite IHm.
+      ring.
+  Qed.
+End MatrixElemOps.
 
-Module Type Matrix (E: MatrixElem).
-  Import E.Notations.
-  Module EP := (MatrixElemProperties E).
+Class Matrix {ME: MatrixElem} :=
+  { (** [t m n A] is the type of m*n matrices with elements in A. *)
+    Mt :> nat -> nat -> Type;
 
-  (** [t m n A] is the type of m*n matrices with elements in A. *)
-  Parameter t: nat -> nat -> Type.
+    Mget : forall {m n}, (Mt m n) -> nat -> nat -> MEt;
+    Mtimes : forall {m n p}, (Mt m n) -> (Mt n p) -> (Mt m p);
 
-  Parameter get : forall {m n}, (t m n) -> nat -> nat -> E.t.
-  Parameter times : forall {m n p}, (t m n) -> (t n p) -> (t m p).
+    Mtimes_correct :
+      forall {m n p} (m1: Mt m n) (m2: Mt n p),
+      forall i j,
+        i < m -> j < p ->
+        Mget (Mtimes m1 m2) i j = sum n (fun k => (Mget m1 i k) *e (Mget m2 k j))
+  }.
 
-  Definition eq {m n} (m1 m2: t m n) :=
+Infix "@*" := Mtimes (at level 40, left associativity) : matrix_scope.
+
+Section MatrixOps.
+  Context {ME : MatrixElem} {M : @Matrix ME}.
+
+  Definition Meq {m n} (m1 m2: Mt m n) :=
     forall i j,
       i < m ->
       j < n ->
-      get m1 i j = get m2 i j.
+      Mget m1 i j = Mget m2 i j.
+End MatrixOps.
 
-  Module Import Notations.
-    Infix "@*" := times (at level 30) : matrix_scope.
-    Infix "@=" := eq (at level 100) : matrix_scope.
-    Notation "m @[ i , j ]" := (get m i j) (at level 20, format "m @[ i ,  j ]") : matrix_scope.
-  End Notations.
+Infix "@=" := Meq (at level 70) : matrix_scope.
+Notation "m @[ i , j ]" := (Mget m i j) (at level 20, format "m @[ i ,  j ]") : matrix_scope.
 
-  Open Scope matrix_scope.
+Delimit Scope matrix_scope with M.
+Open Scope matrix_scope.
 
-  Axiom times_correct :
-    forall {m n p} (m1: t m n) (m2: t n p),
-    forall i j,
-      i < m -> j < p ->
-      (m1 @* m2)@[i, j] = EP.sum n (fun k => m1@[i, k] *e m2@[k, j]).
-End Matrix.
+Section MatrixProps.
+  Variable E: MatrixElem.
+  Variable M: @Matrix E.
 
-Module MatrixProperties (E: MatrixElem) (M: Matrix E).
-  Import E.Notations.
-  Import M.Notations.
+  Add Ring MatrixPropsEtRing : MEring.
 
-  Import M.EP.
-
-  Open Scope matrix_scope.
   Theorem mult_assoc:
-    forall {m n p q} (m1: M.t m n) (m2: M.t n p) (m3: M.t p q),
+    forall {m n p q} (m1: Mt m n) (m2: Mt n p) (m3: Mt p q),
       (m1 @* m2) @* m3 @= m1 @* (m2 @* m3).
   Proof.
     red; intros.
-    setoid_rewrite M.times_correct; try assumption.
+    setoid_rewrite Mtimes_correct; try assumption.
 
     Ltac urgh :=
-      symmetry; etransitivity; (* setoid_rewrite M.times_correct should do this *)
+      symmetry; etransitivity; (* setoid_rewrite Mtimes_correct should do this *)
       [ apply sum_upto_morphism; red; intros;
-        rewrite M.times_correct | ]; intuition reflexivity.
+        rewrite Mtimes_correct | ]; intuition reflexivity.
 
     replace (sum p (fun k : nat => (m1 @* m2)@[i, k] *e m3@[k, j])) with
             (sum p (fun k : nat => sum n (fun l : nat => m1@[i, l] *e m2@[l, k]) *e m3@[k, j]))
@@ -212,4 +227,4 @@ Module MatrixProperties (E: MatrixElem) (M: Matrix E).
     repeat (apply sum_morphism_Proper; red; intros).
     ring.
   Qed.
-End MatrixProperties.
+End MatrixProps.

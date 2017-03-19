@@ -10,18 +10,18 @@ Class MatrixElem :=
     MEzero : MEt;
     MEone : MEt;
 
-    MEopp : MEt -> MEt;
-    MEplus : MEt -> MEt -> MEt;
-    MEminus : MEt -> MEt -> MEt;
-    MEtimes : MEt -> MEt -> MEt;
+    MEopp : forall (e: MEt), MEt;
+    MEplus : forall (e1 e2: MEt), MEt;
+    MEminus : forall (e1 e2: MEt), MEt;
+    MEtimes : forall (e1 e2: MEt), MEt;
 
     MEring : ring_theory MEzero MEone MEplus MEtimes MEminus MEopp eq }.
 
 Infix "*e" := MEtimes (at level 40, left associativity) : ME_scope.
 Infix "+e" := MEplus (at level 50, left associativity) : ME_scope.
 Infix "-e" := MEminus (at level 50, left associativity) : ME_scope.
-Notation e0 := MEzero.
-Notation e1 := MEone.
+Notation me0 := MEzero.
+Notation me1 := MEone.
 
 Open Scope ME_scope.
 Delimit Scope ME_scope with ME.
@@ -92,7 +92,7 @@ Proof.
     intuition auto using pointwise_upto_decr.
 Qed.
 
-Notation sum k f := (fold_nat k (fun acc x => acc +e f x) e0).
+Notation sum k f := (fold_nat k (fun acc x => acc +e f x) me0).
 
 Section MatrixElemOps.
   Context {ME: MatrixElem}.
@@ -141,14 +141,14 @@ Section MatrixElemOps.
       try rewrite <- IHn; ring.
   Qed.
 
-  Lemma sum_e0 :
-    forall n, (sum n (fun k => e0)) = e0.
+  Lemma sum_me0 :
+    forall n, (sum n (fun k => me0)) = me0.
   Proof.
     unfold sum; induction n; simpl; intros; try rewrite IHn; ring.
   Qed.
 
   Notation "Σ{ x } f" :=
-    (fold_nat _ (fun acc x => acc +e f) e0)
+    (fold_nat _ (fun acc x => acc +e f) me0)
       (at level 0, format "Σ{ x }  f").
 
   Lemma sum_swap :
@@ -157,7 +157,7 @@ Section MatrixElemOps.
       sum m (fun k => sum n (fun k' => f k k')).
   Proof.
     induction m; simpl; intros.
-    - rewrite (sum_e0 n); ring.
+    - rewrite (sum_me0 n); ring.
     - rewrite !sum_distribute.
       rewrite IHm.
       ring.
@@ -168,8 +168,8 @@ Class Matrix {ME: MatrixElem} :=
   { (** [t m n A] is the type of m*n matrices with elements in A. *)
     Mt :> nat -> nat -> Type;
 
-    Mget : forall {m n}, (Mt m n) -> nat -> nat -> MEt;
-    Mtimes : forall {m n p}, (Mt m n) -> (Mt n p) -> (Mt m p);
+    Mget : forall {m n} (m: Mt m n) (i j: nat), MEt;
+    Mtimes : forall {m n p} (m1: Mt m n) (m2: Mt n p), Mt m p;
 
     Mtimes_correct :
       forall {m n p} (m1: Mt m n) (m2: Mt n p),

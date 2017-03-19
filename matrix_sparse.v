@@ -1,8 +1,11 @@
 Require Import List.
 Require Import Setoid.
 Require Import PeanoNat.
-Require Coq.omega.Omega. 
-Ltac omega := Coq.omega.Omega.omega.
+Require Import Coq.omega.Omega. 
+Require Import matrix. 
+Module SparseMatrix (ET : MatrixElem) : Matrix ET.
+  
+End SparseMatrix.
 
 Axiom A: Type. 
 Axiom A_plus : A -> A -> A. 
@@ -20,6 +23,7 @@ Axiom A_plus_zero_r: forall a : A, a + zero = a.
 Axiom A_plus_zero_l: forall a : A, zero + a = a. 
 Axiom A_times_zero_l: forall a : A, zero * a = zero. 
 Axiom A_times_zero_r: forall a : A, a * zero = zero. 
+
 
 
 Fixpoint summation (f : nat -> A) k := 

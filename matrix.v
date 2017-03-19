@@ -37,7 +37,7 @@ Lemma pointwise_upto_decr {A}:
   forall (upto : nat) (m1 m2 : nat -> A) R,
     pointwise_upto (S upto) R m1 m2 -> pointwise_upto upto R m1 m2.
 Proof.
-  unfold pointwise_upto; intuition.
+  unfold pointwise_upto. intuition.
 Qed.
 
 Instance pointwise_upto_reflexive {A} k R (reflA : @Reflexive A R) :

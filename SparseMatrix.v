@@ -69,20 +69,94 @@ if andb (i <? m) (j <? n) then
 else
   MEzero.
 
+Fixpoint v_v_mul_le {ME: MatrixElem} (m n p i j k: nat) (v : list (nat * MEt)) (M2: list (list (nat * MEt))) :=
+  match v with 
+  | nil => MEzero
+  | (t, a)::l' => if (t <? k) then (a *e get n p M2 t j) +e v_v_mul_le m n p i j k l' M2
+                  else v_v_mul_le m n p i j k l' M2
+  end. 
+
+Fixpoint v_v_mul_eq {ME: MatrixElem} (m n p i j k: nat) (v : list (nat * MEt)) (M2: list (list (nat * MEt))) :=
+  match v with 
+  | nil => MEzero
+  | (t, a)::l' => if (beq_nat t k) then (a *e get n p M2 t j) +e v_v_mul_eq m n p i j k l' M2
+                  else v_v_mul_eq m n p i j k l' M2
+  end. 
 
 Fixpoint v_matrix_mul {ME: MatrixElem} (m n p i j: nat) (M1 M2: list (list (nat * MEt))) :=
   match j with 
   | 0 => nil
-  | S j' => (j', sum n (fun k => (get m n M1 i k) *e (get n p M2 k j'))) :: v_matrix_mul m n p i j' M1 M2
+  | S j' => (j', v_v_mul_le m n p i j' n (nth_default nil M1 i) M2) :: v_matrix_mul m n p i j' M1 M2
   end. 
-
-
 
 Fixpoint Matrix_mul {ME: MatrixElem} (m n p k: nat) (M1 M2: list (list (nat * MEt))):= 
   match k with 
   | 0 => @nil(list  (nat * MEt))
   | S k' => v_matrix_mul m n p (m - k) p M1 M2::Matrix_mul m n p k' M1 M2
   end. 
+
+Lemma v_v_mul_induct: forall m n p i j k v M2, 
+  v_v_mul_le m n p i j k v M2 +e v_v_mul_eq m n p i j k v M2 = v_v_mul_le m n p i j (S k) v M2. 
+Proof. 
+  intros. 
+  induction v as [| (t, a) v' IHv]. 
+  - cbn. ring. 
+  - cbn. destruct (t <? k) eqn:eq.
+    + apply Nat.leb_le in eq.
+      assert (t =? k = false). { apply beq_nat_false_iff. omega. }
+      assert (t <=? k = true). { apply Nat.leb_le.  omega. }
+      assert (match k with
+    | 0 => false
+    | S m' => t <=? m'
+    end = true). { destruct k. - omega. - apply Nat.leb_le. omega. }
+      rewrite H. rewrite H0. rewrite H1. clear H H0 H1. 
+      rewrite <- IHv. ring. 
+    + apply leb_iff_conv in eq. destruct (t =? k) eqn:eq2.
+      * apply beq_nat_true in eq2. 
+        assert (t <=? k = true). { apply Nat.leb_le. omega. }
+        assert (match k with
+    | 0 => false
+    | S m' => t <=? m'
+    end = false). { destruct k. - reflexivity. - apply Nat.leb_nle. omega. }
+        rewrite H. rewrite H0. rewrite <- IHv. ring. 
+      * apply beq_nat_false in eq2.
+         assert (t <=? k = false). { apply Nat.leb_nle. omega. }
+         assert (match k with
+    | 0 => false
+    | S m' => t <=? m'
+    end = false). { destruct k. - reflexivity. - apply Nat.leb_nle. omega. }
+         rewrite H. rewrite H0. rewrite <- IHv. ring. 
+Qed. 
+
+Lemma v_v_mul_eq_out: forall m n p i j k M1 M2, 
+  i < m -> k < n -> v_v_mul_eq m n p i j k (nth_default nil M1 i) M2 = get m n M1 i k *e get n p M2 k j. 
+Proof. 
+  intros. 
+  unfold get at 1. assert (andb (i <? m) (k <? n) = true).
+  { apply Bool.andb_true_iff. split; apply Nat.ltb_lt; omega. }
+  rewrite H1. clear H1. 
+  remember ((nth_default nil M1 i)) as l. clear Heql. 
+  induction l as [| (t, a) l IHl]. 
+  - cbn. ring. 
+  - cbn. destruct (t =? k) eqn :eq; rewrite Nat.eqb_sym in eq; rewrite eq. 
+    + rewrite IHl. apply beq_nat_true in eq. subst. ring.
+    + rewrite IHl. ring.
+Qed. 
+
+
+Lemma v_v_mul_equals_sum: forall m n p i j k M1 M2, 
+  i < m -> k <= n -> v_v_mul_le m n p i j k (nth_default nil M1 i) M2 = sum k (fun k => (get m n M1 i k) *e (get n p M2 k j)).
+Proof. 
+  intros. 
+  induction k as [| k IHk]. 
+  - cbn. remember ((nth_default nil M1 i)) as l. clear Heql. 
+    induction l as [| (t, a) l IHl]. 
+    + cbn. reflexivity. 
+    + cbn. apply IHl.
+  - rewrite <- v_v_mul_induct. cbn. rewrite IHk.
+    + rewrite v_v_mul_eq_out; try omega. ring. 
+    + omega. 
+Qed. 
 
 Lemma Mtimes_row : forall m n p k M1 M2 i, 
   k <= m -> i < k -> nth_default nil (Matrix_mul m n p k M1 M2) i = v_matrix_mul m n p (m - k + i) p M1 M2. 
@@ -118,21 +192,22 @@ Qed.
 
 
 Lemma Mtimes_col : forall m n p i j k M1 M2, 
-  k < j -> get_v (v_matrix_mul m n p i j M1 M2) k = sum n (fun k0 => (get m n M1 i k0) *e (get n p M2 k0 k)).
+  i < m -> k < j -> get_v (v_matrix_mul m n p i j M1 M2) k = sum n (fun k0 => (get m n M1 i k0) *e (get n p M2 k0 k)).
 Proof. 
   simpl; intros. 
   generalize dependent k.
   induction j as [| j IHj]; intros.
-  - inversion H. 
+  - inversion H0. 
   - cbn. destruct (k=?j) eqn:eq.
     + apply beq_nat_true in eq. 
       assert (H1: k >= j). { omega. }
       rewrite Mtimes_col_lemma. 
-      * rewrite eq. ring. 
+      * rewrite eq. rewrite v_v_mul_equals_sum; try omega. ring. 
       * apply H1. 
     + apply beq_nat_false in eq. assert (H1: k < j). { omega. }
       apply IHj; try apply H1. 
 Qed. 
+
 End A. 
 
 Definition SparseMatrix {ME: MatrixElem} : Matrix.

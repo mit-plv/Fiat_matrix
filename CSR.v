@@ -1109,4 +1109,6 @@ Proof.
   rewrite mul_CSR_CSC_correct'; try assumption. 
   unfold mul_CSR_CSC_row_col. rewrite mul_CSR_CSC_row_col_eff_correct; try omega. 
   reflexivity. 
-Qed. 
+Qed.
+
+End A. 

@@ -76,7 +76,7 @@ Proof.
   cbv delta [update_priori_to_posteriori].
   cbv beta.
   simpl p_pr. simpl x_pr. 
-  rewrite dense_sparse_correct at -1.
+  rewrite dense_sparse_correct.
   
  
 Defined. 

@@ -17,17 +17,6 @@ Notation SSM n := (Mt (ME := E) (Matrix := SparseMatrix) n n).
 
 Axiom Vt: forall n: nat, Type.
 
-Record KalmanState (n: nat) :=
-  { x : Vt n;
-    P : SDM n }.
-
-Definition KalmanSig n : ADTSig :=
-  ADTsignature {
-    Constructor "Init" : (KalmanState n) -> rep,
-    Method "Predict"   : rep * (SDM n) * (SDM n) * (SDM n) * (Vt n) -> rep * (KalmanState n),
-    Method "Update"    : rep * (SDM n) * (SDM n) * (Vt n) -> rep * unit
-  }.
-
 Axiom transpose : forall {n}, SDM n -> SDM n.
 Axiom Mplus : forall {n}, SDM n -> SDM n -> SDM n.
 Infix "@+" := Mplus (at level 50, left associativity) : matrix_scope.
@@ -42,22 +31,30 @@ Axiom Vminus : forall {n}, Vt n -> Vt n -> Vt n.
 Infix "&-" := Vminus (at level 50, left associativity) : matrix_scope.
 Axiom Id : forall {n}, SDM n.
 
-Definition similar {n: nat} (p1 p2 : KalmanState n) :=
-  p1.(x) = p2.(x) /\ p1.(P) @= p2.(P).
-Infix "$=" := similar (at level 70) : matrix_scope.
-
-Notation n := 42. (* FIXME *)
-
 Arguments Mtimes : simpl never.
 (* Arguments DenseMatrix : simpl never. *)
 
-Definition KalmanSpec : ADT (KalmanSig n) :=
+Section KalmanFilter.
+  Variable n : nat.
+
+  Record KalmanState :=
+    { x : Vt n;
+      P : SDM n }.
+
+  Definition KalmanSig : ADTSig :=
+    ADTsignature {
+      Constructor "Init" : KalmanState -> rep,
+      Method "Predict"   : rep * (SDM n) * (SDM n) * (SDM n) * (Vt n) -> rep * KalmanState,
+      Method "Update"    : rep * (SDM n) * (SDM n) * (Vt n) -> rep * unit
+    }.
+
+Definition KalmanSpec : ADT KalmanSig :=
   Def ADT {
-    rep := KalmanState n,
+    rep := KalmanState,
 
-    Def Constructor1 "Init" (init_state: KalmanState n): rep := ret init_state,,
+    Def Constructor1 "Init" (init_state: KalmanState): rep := ret init_state,,
 
-    Def Method4 "Predict" (r : rep) (F: SDM n) (B: SDM n) (Q: SDM n) (u: Vt n) : rep * (KalmanState n) :=
+    Def Method4 "Predict" (r : rep) (F: SDM n) (B: SDM n) (Q: SDM n) (u: Vt n) : rep * KalmanState :=
       x' <<- F &* r.(x) &+ B &* u;
       p' <<- F @* r.(P) @* (transpose F) @+ Q;
       ret (r, {| x := x'; P := p' |}),
@@ -88,11 +85,11 @@ Ltac cleanup :=
 
 Axiom magic : forall {A}, unit -> A.
 
-Record SparseKalmanState (n: nat) :=
+Record SparseKalmanState :=
   { Sx : Vt n;
     SP : SSM n }.
 
-Definition use_a_sparse_P (or : KalmanState n) (nr : SparseKalmanState n) :=
+Definition use_a_sparse_P (or : KalmanState) (nr : SparseKalmanState) :=
   or.(x) = nr.(Sx) /\ or.(P) @= nr.(SP).
 
 Definition SharpenedKalman :
@@ -154,7 +151,7 @@ Proof.
   finish_SharpeningADT_WithoutDelegation.
 Defined.
 
-Definition KalmanImpl : ComputationalADT.cADT (KalmanSig _) :=
+Definition KalmanImpl : ComputationalADT.cADT KalmanSig :=
   Eval simpl in projT1 SharpenedKalman.
 
 Print KalmanImpl.

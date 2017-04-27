@@ -1,185 +1,179 @@
 Require Import
-  Fiat.ADT
-  Fiat.ADTNotation
-  Fiat.ADTRefinement
-  Coq.Strings.String
-  Coq.Lists.List
-  Fiat.ADTRefinement.BuildADTRefinements.
+        Coq.Lists.List
+        Coq.Strings.String
+        Coq.Setoids.Setoid
+        Coq.Arith.PeanoNat
+        Coq.omega.Omega
+        Coq.setoid_ring.Ring
+        Coq.setoid_ring.Ring_theory
+        Matrix
+        SparseMatrix
+        DenseMatrix
+        FiatHelpers.
 
-Require Import List.
-Require Import Setoid.
-Require Import PeanoNat.
-Require Import Coq.omega.Omega.
-Require Import Matrix.
-Require Import Coq.setoid_ring.Ring.
-Require Import Coq.setoid_ring.Ring_theory.
-Require Import SparseMatrix.
-Require Import DenseMatrix.
+Variable E: MatrixElem.
+Notation SDM n := (Mt (ME := E) (Matrix := DenseMatrix) n n).
+Notation SSM n := (Mt (ME := E) (Matrix := SparseMatrix) n n).
 
-Section A.
-  Variable E: MatrixElem.
-  Notation SDM n := (Mt (ME := E) (Matrix := DenseMatrix) n n).
+Axiom Vt: forall n: nat, Type.
 
-  Axiom Vt: forall n: nat, Type.
+Record KalmanState (n: nat) :=
+  { x : Vt n;
+    P : SDM n }.
 
-  Record KalmanState (n: nat) := {
-    x : Vt n;
-    P : SDM n;
+Definition KalmanSig n : ADTSig :=
+  ADTsignature {
+    Constructor "Init" : (KalmanState n) -> rep,
+    Method "Predict"   : rep * (SDM n) * (SDM n) * (SDM n) * (Vt n) -> rep * (KalmanState n),
+    Method "Update"    : rep * (SDM n) * (SDM n) * (Vt n) -> rep * unit
   }.
 
-  Definition KalmanSig n : ADTSig :=
-    ADTsignature {
-      Constructor "Init" : (KalmanState n) -> rep,
-      Method "Predict"   : rep * (SDM n) * (SDM n) * (SDM n) * (Vt n) -> rep * (KalmanState n),
-      Method "Update"    : rep * (SDM n) * (SDM n) * (Vt n) -> rep * unit
-    }.
+Axiom transpose : forall {n}, SDM n -> SDM n.
+Axiom Mplus : forall {n}, SDM n -> SDM n -> SDM n.
+Infix "@+" := Mplus (at level 50, left associativity) : matrix_scope.
+Axiom Mminus : forall {n}, SDM n -> SDM n -> SDM n.
+Infix "@-" := Mminus (at level 50, left associativity) : matrix_scope.
+Axiom MVtimes : forall {n}, SDM n -> Vt n -> Vt n.
+Axiom inversion : forall {n}, SDM n -> SDM n.
+Infix "&*" := MVtimes (at level 40, left associativity) : matrix_scope.
+Axiom Vplus : forall {n}, Vt n -> Vt n -> Vt n.
+Infix "&+" := Vplus (at level 50, left associativity) : matrix_scope.
+Axiom Vminus : forall {n}, Vt n -> Vt n -> Vt n.
+Infix "&-" := Vminus (at level 50, left associativity) : matrix_scope.
+Axiom Id : forall {n}, SDM n.
 
-  Axiom transpose : forall {n}, SDM n -> SDM n.
-  Axiom Mplus : forall {n}, SDM n -> SDM n -> SDM n.
-  Infix "@+" := Mplus (at level 50, left associativity) : matrix_scope.
-  Axiom Mminus : forall {n}, SDM n -> SDM n -> SDM n.
-  Infix "@-" := Mminus (at level 50, left associativity) : matrix_scope.
-  Axiom MVtimes : forall {n}, SDM n -> Vt n -> Vt n.
-  Axiom inversion : forall {n}, SDM n -> SDM n.
-  Infix "&*" := MVtimes (at level 40, left associativity) : matrix_scope.
-  Axiom Vplus : forall {n}, Vt n -> Vt n -> Vt n.
-  Infix "&+" := Vplus (at level 50, left associativity) : matrix_scope.
-  Axiom Vminus : forall {n}, Vt n -> Vt n -> Vt n.
-  Infix "&-" := Vminus (at level 50, left associativity) : matrix_scope.
-  Axiom Id : forall {n}, SDM n.
+Definition similar {n: nat} (p1 p2 : KalmanState n) :=
+  p1.(x) = p2.(x) /\ p1.(P) @= p2.(P).
+Infix "$=" := similar (at level 70) : matrix_scope.
 
-  Definition similar {n: nat} (p1 p2 : KalmanState n) :=
-    p1.(x) = p2.(x) /\ p1.(P) @= p2.(P).
-  Infix "$=" := similar (at level 70) : matrix_scope.
+Notation n := 42. (* FIXME *)
 
-  Notation n := 42. (* FIXME *)
+Arguments Mtimes : simpl never.
+(* Arguments DenseMatrix : simpl never. *)
 
-  Axiom block : forall A, A -> Comp A.
+Definition KalmanSpec : ADT (KalmanSig n) :=
+  Def ADT {
+    rep := KalmanState n,
 
-  Definition KalmanSpec : ADT (KalmanSig n) :=
-    Def ADT {
-      rep := KalmanState n,
+    Def Constructor1 "Init" (init_state: KalmanState n): rep := ret init_state,,
 
-      Def Constructor1 "Init" (init_state: KalmanState n): rep := ret init_state,,
+    Def Method4 "Predict" (r : rep) (F: SDM n) (B: SDM n) (Q: SDM n) (u: Vt n) : rep * (KalmanState n) :=
+      x' <<- F &* r.(x) &+ B &* u;
+      p' <<- F @* r.(P) @* (transpose F) @+ Q;
+      ret (r, {| x := x'; P := p' |}),
 
-      Def Method4 "Predict" (r : rep) (F: SDM n) (B: SDM n) (Q: SDM n) (u: Vt n) : rep * (KalmanState n) :=
-        x' <- ret (F &* r.(x) &+ B &* u);
-        p' <- ret (F @* r.(P) @* (transpose F) @+ Q);
-        ret (r, {| x := x'; P := p' |}),
+    Def Method3 "Update" (r : rep) (H: SDM n) (R: SDM n) (z: Vt n) : rep * unit :=
+      y' <<- z &- H &* r.(x);
+      S' <<- H @* r.(P) @* transpose(H) @+ R;
+      K' <<- r.(P) @* transpose(H) @* inversion(S');
+      x' <<- r.(x) &+ K' &* y';
+      p' <<- (Id @- K' @* H) @* r.(P);
+      ret ({| x := x'; P := p' |}, tt)
+  }%methDefParsing.
 
-      Def Method3 "Update" (r : rep) (H: SDM n) (R: SDM n) (z: Vt n) : rep * unit :=
-        y' <- ret (z &- H &* r.(x));
-        S' <- ret (H @* r.(P) @* transpose(H) @+ R);
-        K' <- ret (r.(P) @* transpose(H) @* inversion(S'));
-        x' <- ret (r.(x) &+ K' &* y');
-        p' <- ret ((Id @- K' @* H) @* r.(P));
-        ret ({| x := x'; P := p' |}, tt)
-   }%methDefParsing.
+Ltac reveal_body_evar :=
+  match goal with
+  | [ H := ?x : methodType _ _ _ |- _ ] => is_evar x; progress unfold H
+  (* | [ H := ?x : constructorType _ _ |- _ ] => is_evar x; progress unfold H *)
+  end.
 
-  Axiom magic : forall {A}, unit -> A.
+Ltac cleanup :=
+  repeat match goal with
+         | [ H: _ /\ _ |- _ ] => destruct H
+         | _ => progress subst
+         | _ => progress (cbv iota)
+         | _ => progress simpl
+         | _ => simplify with monad laws
+         end.
 
-  Definition SharpenedKalman :
-    FullySharpened KalmanSpec.
-  Proof.
-    start sharpening ADT.
-    unfold StringId, StringId0, StringId1.
+Axiom magic : forall {A}, unit -> A.
 
-    Open Scope string_scope.
+Record SparseKalmanState (n: nat) :=
+  { Sx : Vt n;
+    SP : SSM n }.
 
-    Definition no_change_in_rep (or : KalmanState n) (nr : KalmanState n) :=
-      or = nr.
+Definition use_a_sparse_P (or : KalmanState n) (nr : SparseKalmanState n) :=
+  or.(x) = nr.(Sx) /\ or.(P) @= nr.(SP).
 
-    Notation SSM n := (Mt (ME := E) (Matrix := SparseMatrix) n n).
+Definition SharpenedKalman :
+  FullySharpened KalmanSpec.
+Proof.
+  start sharpening ADT.
+  unfold StringId, StringId0, StringId1.
 
-    Axiom sparsify: forall {n}, SDM n -> SSM n.
-    Axiom sparsify_correct: forall n: nat, forall M : SDM n, M @= sparsify M.
-    Axiom densify: forall {n}, SSM n -> SDM n.
-    Axiom densify_correct: forall n: nat, forall M : SSM n, M @= densify M.
-    (* Axiom dense_sparse_correct: forall n : nat, forall M1 M2 : SDM n, *)
-    (*       M1 @* M2 = densify(M1 @* sparsify M2). *)
+  Open Scope string_scope.
 
-    Record SparseKalmanState (n: nat) := {
-      Sx : Vt n;
-      SP : SSM n;
-    }.
+  Axiom sparsify: forall {n}, SDM n -> SSM n.
+  Axiom sparsify_correct: forall n: nat, forall M : SDM n, M @= sparsify M.
+  Axiom densify: forall {n}, SSM n -> SDM n.
+  Axiom densify_correct: forall n: nat, forall M : SSM n, M @= densify M.
+  Axiom matrix_eq_commutes :
+    forall (m n: nat) ME M1 M2 (m1: @Mt ME M1 m n) (m2: @Mt ME M2 m n),
+      m1 @= m2 -> m2 @= m1.
 
-    Definition use_a_sparse_P (or : KalmanState n) (nr : SparseKalmanState n) :=
-      or.(x) = nr.(Sx) /\ or.(P) @= nr.(SP).
+  Hint Resolve sparsify_correct densify_correct matrix_eq_commutes: matrices.
 
-    Arguments Mtimes : simpl never.
-    (* Arguments DenseMatrix : simpl never. *)
+  hone representation using use_a_sparse_P;
+    unfold use_a_sparse_P in *; cleanup; try reveal_body_evar.
 
-    hone representation using use_a_sparse_P.
+  { (* Init *)
+    refine pick val {| Sx := _; SP := _ |}.
+    - finish honing.
+    - simpl; auto with matrices.
+  }
 
-    Ltac cleanup :=
-      repeat match goal with
-             | [ H: _ /\ _ |- _ ] => destruct H
-             | _ => progress subst
-             | _ => progress (cbv iota)
-             | _ => progress simpl
-             (* | _ => simplify with monad laws *)
-             | _ => progress unfold no_change_in_rep in *
-             end.
+  { (* Predict *)
+    unfold use_a_sparse_P in *; cleanup.
 
-    { (* Init *)
-      cleanup.
-      simplify with monad laws.
-      unfold use_a_sparse_P.
-      refine pick val {| Sx := _; SP := _ |}.
-      finish honing.
-      simpl.
-      split.
-      reflexivity.
-      assert (forall M, M @= sparsify (n := n) M) by (apply (magic tt)).
-      apply H0.
-    }
+    assert (r_o.(P) = densify (r_n.(SP))) by (apply (magic tt)).
+    rewrite !H0, !H2.
 
-    { (* Predict *)
-      cleanup. (* FIXME how do I prevent 'block' from getting simplified? *)
-      (* replace block with ret by (apply (magic tt)). *)
+    refine blocked ret.
+    refine blocked ret.
 
-      (* simplify_with_applied_monad_laws_1. (* Jason: tips on this? *) *)
-      (* simplify_with_applied_monad_laws_1. (* Jason: tips on this? *) *)
+    refine pick val r_n.
+    - simplify with monad laws; finish honing.
+    - eauto with matrices.
+  }
 
-      simplify with monad laws.
-      cleanup.
-      unfold use_a_sparse_P in *.
-      cleanup.
-      refine pick val r_n; try solve [intuition].
-      simplify with monad laws.
-      assert (densify (r_n.(SP)) = r_o.(P)) by (apply (magic tt)).
-      rewrite <- !H2.
-      rewrite !H0.
-      finish honing.
-    }
+  { (* Update *)
+    unfold H.
 
-    { (* Update *)
-      cleanup.
-      (* replace block with ret by (apply (magic tt)). *)
-      simplify with monad laws.
-      cleanup.
-      unfold use_a_sparse_P in *.
-      simpl.
-      refine pick val {| Sx := _; SP := _ |}.
-      simplify with monad laws.
-      finish honing.
-      simpl.
-      cleanup.
-      assert (densify (r_n.(SP)) = r_o.(P)) by (apply (magic tt)).
-      rewrite <- !H2.
-      rewrite !H0.
-      split.
-      reflexivity.
+    assert (r_o.(P) = densify (r_n.(SP))) by (apply (magic tt)).
+    rewrite !H0, !H2.
 
-      assert (forall M, M @= sparsify (n := n) M) by (apply (magic tt)).
-      apply H3.
-    }
+    repeat refine blocked ret.
 
-    finish_SharpeningADT_WithoutDelegation.
-    
-  Defined.
+    refine pick val {| Sx := bvar2; SP := sparsify bvar3 |}.
+    - simplify with monad laws; finish honing.
+    - simpl; eauto with matrices.
+  }
 
-  Definition KalmanImpl : ComputationalADT.cADT (KalmanSig _) :=
-    Eval simpl in projT1 SharpenedKalman.
+  cbv beta.
+  expose_rets_hidden_under_blets.
+  finish_SharpeningADT_WithoutDelegation.
+Defined.
 
-  Print KalmanImpl.
+Definition KalmanImpl : ComputationalADT.cADT (KalmanSig _) :=
+  Eval simpl in projT1 SharpenedKalman.
+
+Print KalmanImpl.
+
+(* Lemma refine_first : *)
+(*   forall {A B} (a a': Comp A) c (f: A -> Comp B), *)
+(*     refine a' a -> *)
+(*     refine (Bind a f) c -> *)
+(*     refine (Bind a' f) c. *)
+(* Proof. *)
+(*   intros. *)
+(*   etransitivity. *)
+(*   apply refine_under_bind_both; eauto. *)
+(*   reflexivity. *)
+(*   assumption. *)
+(* Qed. *)
+
+(* Ltac maybe_unfold_in haystack needle := *)
+(*   match constr:(tt) with *)
+(*   | _ => let e := (eval unfold needle in haystack) in e *)
+(*   | _ => constr:(haystack) *)
+(*   end. *)

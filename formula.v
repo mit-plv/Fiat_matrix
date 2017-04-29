@@ -36,8 +36,12 @@ Axiom sparsify_correct: forall n: nat, forall M : Mt n n, M @= sparsify M.
 Axiom densify: forall {n}, Mt n n -> Mt n n.
 Axiom densify_correct: forall n: nat, forall M : Mt n n, M @= densify M. 
 Axiom dense_sparse_correct: forall n : nat, forall M1 M2 : Mt n n,
-     M1 @* M2 = densify(M1 @* sparsify M2). 
-  
+      M1 @* M2 = densify(M1 @* sparsify M2).
+Axiom solveR: forall {n}, Mt n n -> Mt n n -> Mt n n.
+Axiom solveR_correct: forall n: nat, forall M1 M2: Mt n n,
+      M1 @* (inversion M2) = solveR M2 M1.
+Axiom multi_assoc: forall n: nat, forall M1 M2 M3 : Mt n n,
+      (M1 @* M2) @* M3 = M1 @* (M2 @* M3).
 Record priori {n: nat} :=
   {
     x_pr : Vt n;
@@ -72,13 +76,37 @@ Proof.
   intros. 
   econstructor.
   intros.
-  destruct f. 
+  destruct f.
   cbv delta [update_priori_to_posteriori].
   cbv beta.
-  simpl p_pr. simpl x_pr. 
-  rewrite dense_sparse_correct at -1.
-  
- 
+  simpl p_pr. simpl x_pr.
+  rewrite dense_sparse_correct.
+  change ((let y' := z &- H &* x_pr0 in
+   let S' := densify (H @* p_pr0 @* sparsify (transpose H)) @+ R in
+   let K' := p_pr0 @* transpose H @* inversion S' in
+   let x' := x_pr0 &+ K' &* y' in
+   let p' := (Id @- K' @* H) @* p_pr0 in {| x_po := x'; p_po := p' |})) with ((let y' := z &- H &* x_pr0 in
+   let K' := p_pr0 @* transpose H @* inversion ( densify (H @* p_pr0 @* sparsify (transpose H)) @+ R) in
+   let x' := x_pr0 &+ K' &* y' in
+   let p' := (Id @- K' @* H) @* p_pr0 in {| x_po := x'; p_po := p' |})).
+  replace (p_pr0 @* transpose H @*
+                 inversion (densify (H @* p_pr0 @* sparsify (transpose H)) @+ R))
+          with (p_pr0 @* (transpose H @*
+                                    inversion (densify (H @* p_pr0 @* sparsify (transpose H)) @+ R))) by (rewrite <- multi_assoc at 1; reflexivity).
+  rewrite solveR_correct.
+  replace (let y' := z &- H &* x_pr0 in
+   let K' :=
+     p_pr0 @*
+     solveR (densify (H @* p_pr0 @* sparsify (transpose H)) @+ R) (transpose H) in
+   let x' := x_pr0 &+ K' &* y' in
+   let p' := (Id @- K' @* H) @* p_pr0 in {| x_po := x'; p_po := p' |})
+          with (
+   let K' :=
+     p_pr0 @*
+     solveR (densify (H @* p_pr0 @* sparsify (transpose H)) @+ R) (transpose H) in
+   let x' := x_pr0 &+ K' &* (z &- H &* x_pr0) in
+   let p' := (Id @- K' @* H) @* p_pr0 in {| x_po := x'; p_po := p' |}) by (auto).
+  reflexivity. 
 Defined. 
 
 

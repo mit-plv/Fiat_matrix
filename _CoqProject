@@ -1,2 +1,12 @@
--R ../fiat/src/ Fiat
 -I ../fiat/src/Common/Tactics
+-R ../fiat/src/ Fiat
+-install none
+
+Matrix.v
+ZElem.v
+
+SparseMatrix.v
+DenseMatrix.v
+
+FiatHelpers.v
+Kalman.v

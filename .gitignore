@@ -4,3 +4,4 @@
 *.aux
 *.glob
 .DS_Store
+*.v.d

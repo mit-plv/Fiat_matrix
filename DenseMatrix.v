@@ -107,7 +107,7 @@ Proof.
       rewrite H1. assert (H2: j <= p). { omega. }
       assert (H3: k < j). { omega. }
       apply IHj; try assumption. 
-Qed. 
+Qed.
 End A. 
 
 Definition DenseMatrix {ME: MatrixElem} : Matrix.

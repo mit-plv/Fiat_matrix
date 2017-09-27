@@ -170,15 +170,23 @@ Class Matrix {ME: MatrixElem} :=
 
     Mget : forall {m n}, (Mt m n) -> nat -> nat -> MEt;
     Mtimes : forall {m n p}, (Mt m n) -> (Mt n p) -> (Mt m p);
-
+    Melementwise_op: forall {m n}, (MEt -> MEt -> MEt) -> (Mt m n) -> (Mt m n) -> (Mt m n);
+          
     Mtimes_correct :
       forall {m n p} (m1: Mt m n) (m2: Mt n p),
       forall i j,
         i < m -> j < p ->
-        Mget (Mtimes m1 m2) i j = sum n (fun k => (Mget m1 i k) *e (Mget m2 k j))
+        Mget (Mtimes m1 m2) i j = sum n (fun k => (Mget m1 i k) *e (Mget m2 k j));
+                                     
+    Melementwise_op_correct:
+      forall {m n} (m1: Mt m n) (m2: Mt m n) (op: MEt -> MEt -> MEt),
+      forall i j,
+        i < m -> j < n ->
+        Mget (Melementwise_op op m1 m2) i j = op (Mget m1 i j) (Mget m2 i j)
   }.
 
 Infix "@*" := Mtimes (at level 40, left associativity) : matrix_scope.
+Infix "@+" := (Melementwise_op MEplus) (at level 50, left associativity) : matrix_scope.
 
 Section MatrixOps.
   Context {ME : MatrixElem} {M1 M2: @Matrix ME}.
@@ -201,6 +209,24 @@ Section MatrixProps.
   Variable M: @Matrix E.
 
   Add Ring MatrixPropsEtRing : MEring.
+
+  Theorem plus_commu:
+    forall {m n} (m1: Mt m n) (m2 : Mt m n),
+      m1 @+ m2 @= m2 @+ m1.
+  Proof.
+    red; intros.
+    setoid_rewrite Melementwise_op_correct; try assumption.
+    ring.
+  Qed.
+
+  Theorem plus_assoc:
+    forall {m n} (m1: Mt m n) (m2: Mt m n) (m3: Mt m n),
+      (m1 @+ m2) @+ m3 @= m1 @+ (m2 @+ m3).
+  Proof.
+    red; intros.
+    repeat (setoid_rewrite Melementwise_op_correct; try assumption).
+    ring. 
+  Qed.
   
   Theorem mult_assoc:
     forall {m n p q} (m1: Mt m n) (m2: Mt n p) (m3: Mt p q),
@@ -227,6 +253,19 @@ Section MatrixProps.
     repeat (apply sum_morphism_Proper; red; intros).
     ring.
   Qed.
+
+  Theorem plus_mult_dist:
+    forall {m n p} (m1: Mt m n) (m2: Mt m n) (m3: Mt n p),
+      (m1 @+ m2) @* m3 @= m1 @* m3 @+ m2 @* m3.
+  Proof.
+    red; intros.
+    repeat ((setoid_rewrite Mtimes_correct || setoid_rewrite Melementwise_op_correct); try assumption). 
+    replace (sum n (fun k : nat => (m1 @+ m2)@[i, k] *e m3@[k, j]))
+      with (sum n (fun k : nat => m1@[i, k] *e m3@[k, j] +e m2@[i, k] *e m3@[k, j])).
+    - apply sum_distribute.
+    - apply sum_upto_morphism. red. intros.
+      repeat ((setoid_rewrite Mtimes_correct || setoid_rewrite Melementwise_op_correct); try assumption). ring.
+   Qed. 
 End MatrixProps.
 
 Section MatrixProps'.

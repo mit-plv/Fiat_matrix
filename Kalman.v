@@ -1,3 +1,4 @@
+
 Require Import
         Coq.Lists.List
         Coq.Strings.String
@@ -173,52 +174,96 @@ Section KalmanFilter.
     Axiom Cholesky_DC: forall {n}, SDM n -> SDM n.
     Axiom solveR_lower: forall {n}, SDM n -> SDM n -> SDM n.
     Axiom solveR_upper: forall {n}, SDM n -> SDM n -> SDM n.
+    Axiom ABv_assoc: forall n:nat, forall A B: SDM n, forall v : Vt n,
+      MVtimes (A @* B) v =  MVtimes A (MVtimes B v). 
     Axiom Cholesky_DC_correct: forall n:nat, forall M1 M2 : SDM n, 
         solveR M1 M2 = solveR_upper (transpose (Cholesky_DC M1)) (solveR_lower (Cholesky_DC M1) M2). 
+    Axiom Densify_correct: forall n:nat, forall M : SDM n, forall S : SSM n,
+            M @= S -> M = densify S.
+    Axiom Densify_correct_rev: forall n:nat, forall M : SDM n, forall S : SSM n,
+            M = densify S -> M @= S.    
+    Hint Resolve sparsify_correct densify_correct matrix_eq_commutes solveR_correct multi_assoc Densify_correct Densify_correct_rev: matrices.
     
-    Hint Resolve sparsify_correct densify_correct matrix_eq_commutes solveR_correct multi_assoc: matrices.
-
     hone representation using use_a_sparse_P;
       unfold use_a_sparse_P in *; cleanup; try reveal_body_evar.
 
+    Ltac clearit r_o r_n :=
+        repeat match goal with
+               | [ H: ?X r_o = _ _ |- context [?X r_o]] => rewrite !H
+               | [ |- context [?X r_o] ] =>
+                 let type_field := type of (X r_o) in
+                 let type_new_state := type of (r_n) in
+                 let field := fresh "field" in
+                 let g := fresh "g" in
+                 let f := fresh "f" in 
+                 evar (field: Type);
+                 evar (g: type_new_state -> field);
+                 evar (f : field -> type_field);
+                 assert (P r_o = f (g r_n)) by (subst g; subst f; eauto with matrices);
+                 subst field;
+                 subst g;
+                 subst f
+               end.
+    Ltac guess_pick_val :=
+        let x := fresh "x" in
+        let SP := fresh "SP" in
+         evar (x: Vt n); evar (SP: SSM n); refine pick val {| Sx := x; SP := SP |}; subst x; subst SP; try (split; simpl; eauto with matrices).
+    Ltac end_template :=
+        try (simplify with monad laws); finish honing.
+    Ltac Cholesky_Optimizer :=
+      rewrite solveR_correct; rewrite Cholesky_DC_correct.
+   
+    Ltac ABv_Optimizer :=
+      rewrite ABv_assoc. 
+    
+    Ltac Optimizers :=
+      repeat (Cholesky_Optimizer || ABv_Optimizer).
+    
+    Ltac ref_block :=
+        repeat (refine blocked ret; Optimizers). 
     { (* Init *)
-      refine pick val {| Sx := _; SP := _ |}.
-      - finish honing.
-      - simpl; auto with matrices.
-    }
-
-    { (* Predict *)
-      unfold use_a_sparse_P in *; cleanup.
-
-      assert (r_o.(P) = densify (r_n.(SP))) by (apply (magic tt)).
-      rewrite !H0, !H2.
-
-      refine blocked ret.
-      (*rewrite blocked_ret_is_ret.
-      simplify with monad laws.*)
-      refine blocked ret.
+      (*
+      Ltac PickValForInit :=
+        match goal with
+        | [|- refine { r_n | _  = ?XX r_n /\ _} _] => refine pick val {| XX := _|} 
+        end.
+      PickValForInit.*)
       
-      refine pick val r_n.
-      - simplify with monad laws; finish honing.
-      - eauto with matrices.
+      guess_pick_val.
+      end_template. 
     }
 
-    { (* Update *)
-      unfold H.
+    {
+      (* Predict *)
+      (*  unfold use_a_sparse_P in *; cleanup.*)
 
-      assert (r_o.(P) = densify (r_n.(SP))) by (apply (magic tt)).
-      rewrite !H0, !H2.
+      
+      (*evar (field : Type);
+      evar (g: SparseKalmanState -> field);
+      evar (f : field -> SDM n);
+      assert (P r_o = f (g r_n)) by (subst g; subst f; eauto with matrices);
+      subst field;
+      subst g;
+      subst f.*)
+      
 
-      refine blocked ret.
-      refine blocked ret.
-      rewrite multi_assoc. 
-      rewrite solveR_correct. 
-      rewrite Cholesky_DC_correct. 
-      repeat refine blocked ret.
 
-      refine pick val {| Sx := bvar2; SP := sparsify bvar3 |}.
-      - simplify with monad laws; finish honing.
-      - simpl; eauto with matrices.
+      clearit r_o r_n.
+      ref_block.
+      guess_pick_val.
+      end_template. 
+      
+      
+    }
+
+    { (* Update *) 
+      clearit r_o r_n.
+
+
+      ref_block.
+
+      guess_pick_val.
+      end_template. 
     }
 
     cbv beta.
@@ -236,7 +281,7 @@ Section KalmanFilter.
   (*     refine a' a -> *)
   (*     refine (Bind a f) c -> *)
   (*     refine (Bind a' f) c. *)
-a  (* Proof. *)
+  (* Proof. *)
   (*   intros. *)
   (*   etransitivity. *)
   (*   apply refine_under_bind_both; eauto. *)

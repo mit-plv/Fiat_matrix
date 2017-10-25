@@ -222,6 +222,77 @@ Proof.
       split; eauto.
 Qed.
 
+
+Lemma decompose_computation_right_unit {A B C D E}:
+  forall (a: A) (b: B) (d: D) (op2: A -> C) (op: B -> C -> D) (com: D -> Comp E), 
+    d = op b (op2 a) -> refineEquiv (y <<- d; com(y)) (  x <<- op2 a; y <<- op b x; com(y)) .
+Proof.
+  intros.
+  split.
+  - intros.
+    rewrite H.
+    repeat intro.
+    computes_to_inv.
+    rewrite blocked_ret_is_ret in *.
+    econstructor.
+    econstructor.
+    + rewrite <- H.
+      econstructor.  
+    + unfold Ensembles.In.
+      inversion H0. inversion H0'.
+      rewrite H1 in *.
+      rewrite H2 in *.
+      rewrite H.
+      assumption. 
+  - intros.
+    rewrite H.
+    repeat intro.
+    computes_to_inv.
+    rewrite blocked_ret_is_ret in *.
+    econstructor.
+    econstructor.
+    + unfold Ensembles.In.
+      econstructor.
+    + econstructor.
+      split; eauto.
+Qed.
+
+
+Lemma decompose_computation_left_unit {A B C D E}:
+  forall (a: A) (b: B) (d: D) (op2: A -> C) (op: C -> B -> D) (com: D -> Comp E), 
+    d = op (op2 a) b -> refineEquiv (y <<- d; com(y)) (  x <<- op2 a; y <<- op x b; com(y)) .
+Proof.
+  intros.
+  split.
+  - intros.
+    rewrite H.
+    repeat intro.
+    computes_to_inv.
+    rewrite blocked_ret_is_ret in *.
+    econstructor.
+    econstructor.
+    + rewrite <- H.
+      econstructor.  
+    + unfold Ensembles.In.
+      inversion H0. inversion H0'.
+      rewrite H1 in *.
+      rewrite H2 in *.
+      rewrite H.
+      assumption. 
+  - intros.
+    rewrite H.
+    repeat intro.
+    computes_to_inv.
+    rewrite blocked_ret_is_ret in *.
+    econstructor.
+    econstructor.
+    + unfold Ensembles.In.
+      econstructor.
+    + econstructor.
+      split; eauto.
+Qed.
+
+
 Lemma refine_smaller (A B: Type) (C: A) (f g: A -> Comp B):
         (forall x, refineEquiv (f x) (g x))
         -> refineEquiv (x <<- C; f x) (x <<- C; g x).
@@ -232,6 +303,45 @@ Proof.
   erewrite refineEquiv_bind_unit.
   erewrite refineEquiv_bind_unit.
   apply H. 
+Qed.
+
+Lemma refine_trivial_bind {A B}:
+      forall (a: A) (b: Comp B),
+             refineEquiv (x <<- a; b) (b).
+Proof.
+  intros.
+  rewrite blocked_ret_is_ret in *.
+  split.
+  - repeat intro.
+    computes_to_inv.
+    econstructor.
+    split.
+    + econstructor.
+    + assumption.
+  -  repeat intro.
+     inversion H.
+     inversion H0.
+     assumption.
+Qed.
+
+Lemma refine_substitute {A B}:
+      forall (a: A) (f: A -> Comp B),
+             refineEquiv (x <<- a; f x) (f a).
+Proof.
+  intros.
+  rewrite blocked_ret_is_ret in *.
+  split.
+  - repeat intro.
+    computes_to_inv.
+    econstructor.
+    split.
+    + econstructor.
+    + assumption.
+  -  repeat intro.
+     inversion H.
+     inversion H0.
+     inversion H1.
+     eauto.  
 Qed.
 
 (*Lemma decompose_function {A B C D}:

@@ -233,13 +233,18 @@ Section KalmanFilter.
     Ltac ref_block :=
       repeat (refine blocked ret; Optimizers).
 
+    Ltac Optimize1 :=
+      etransitivity;
+      [repeat (refine blocked ret; Optimizers);
+      higher_order_reflexivity | ]; simpl.
 
-    
+    Ltac singleStepUnfolding :=
+      repeat ((erewrite decompose_computation_left by eauto) || (erewrite decompose_computation_right by eauto) || (erewrite decompose_computation_left_unit by eauto) ||(erewrite decompose_computation_right_unit by eauto)) .
     Ltac deepUnfolding :=
-      erewrite refine_smaller; [ | intros;  etransitivity; [repeat ((erewrite decompose_computation_left by eauto) || (erewrite decompose_computation_right by eauto)); try deepUnfolding; higher_order_reflexivity| higher_order_reflexivity] ].
+      erewrite refine_smaller; [ | intros;  etransitivity; [singleStepUnfolding; try deepUnfolding; higher_order_reflexivity| higher_order_reflexivity] ].
     Ltac Unfolding :=
        etransitivity;
-      [repeat ((erewrite decompose_computation_left by eauto) || (erewrite decompose_computation_right by eauto)); try deepUnfolding; higher_order_reflexivity| ]; simpl.
+      [singleStepUnfolding; try deepUnfolding; higher_order_reflexivity| ]; simpl.
      
      
     {
@@ -259,9 +264,37 @@ Section KalmanFilter.
 
     { (* Update *) 
       clearit r_o r_n.
+      etransitivity.
+      repeat Optimizers.
+      
+      
+       (etransitivity;
+        [ erewrite refine_substitute by eauto; higher_order_reflexivity | ]).
+       
+      Optimizers. 
       Unfolding.
-      ref_block.
+      Ltac step :=
+        (try
+          (etransitivity; [ erewrite refine_trivial_bind by eauto;  higher_order_reflexivity | ])) || 
+        match goal with
+        | [ H :  NoSubst (?Y = _)|- refine (x0 <<- ?Y; _) _] =>
+          etransitivity;
+          [ erewrite refine_substitute by eauto; higher_order_reflexivity | ]
+        | [H : NoSubst (_ = ?Y) |- refine (x0 <<- ?Y; _) _] =>
+           etransitivity;
+          [ rewrite <- H; higher_order_reflexivity | ]
+        | _  => refine blocked ret
+        end.
+      
+
+      etransitivity.
+      step.
+      
+      repeat step.       
       guess_pick_val.
+      higher_order_reflexivity.
+      simpl.
+      
       end_template.
     }
 

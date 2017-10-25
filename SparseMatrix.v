@@ -55,7 +55,7 @@ Qed.
 
 Section A.
  Variable ME : MatrixElem.
- Add Ring Aring : MEring.
+ Add Field Afield : MEfield.
 
 Fixpoint get_v {ME: MatrixElem} (l: list (nat * MEt)) (k : nat) := 
   match l with

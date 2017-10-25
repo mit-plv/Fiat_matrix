@@ -2,7 +2,8 @@ Require Export
   Fiat.ADT
   Fiat.ADTNotation
   Fiat.ADTRefinement
-  Fiat.ADTRefinement.BuildADTRefinements.
+  Fiat.ADTRefinement.BuildADTRefinements
+  Fiat.Computation.Core.
 
 Definition _blocked_ret : { x: forall A, A -> Comp A | x = ret }.
 Proof. exists Return; reflexivity. Qed.
@@ -147,3 +148,154 @@ Ltac finish_SharpeningADT_WithoutDelegation ::=
   | extract_delegate_free_impl
   | simpl; higher_order_reflexivityT ].
 
+
+
+(* ========================= *)
+Require Import Fiat.Computation.Refinements.Tactics. 
+
+Lemma decompose_computation_left {A B C D E F}:
+  forall (a: A) (b: B) (d: D) (e: E) (op2: A -> B -> C) (op: C -> D -> E) (com: E -> Comp F), 
+    e = op (op2 a b) d -> refineEquiv (y <<- e; com(y)) (  x <<- op2 a b; y <<- op x d; com(y)) .
+Proof.
+  intros.
+  split.
+  - intros.
+    rewrite H.
+    repeat intro.
+    computes_to_inv.
+    rewrite blocked_ret_is_ret in *.
+    econstructor.
+    econstructor.
+    + rewrite <- H.
+      econstructor.  
+    + unfold Ensembles.In.
+      inversion H0. inversion H0'.
+      rewrite H1 in *.
+      rewrite H2 in *.
+      rewrite H.
+      assumption. 
+  - intros.
+    rewrite H.
+    repeat intro.
+    computes_to_inv.
+    rewrite blocked_ret_is_ret in *.
+    econstructor.
+    econstructor.
+    + unfold Ensembles.In.
+      econstructor.
+    + econstructor.
+      split; eauto.
+Qed.
+
+
+Lemma decompose_computation_right {A B C D E F}:
+  forall (a: A) (b: B) (d: D) (e: E) (op2: A -> B -> C) (op: D -> C -> E) (com: E -> Comp F), 
+    e = op d (op2 a b) -> refineEquiv (y <<- e; com(y)) (  x <<- op2 a b; y <<- op d x; com(y)) .
+Proof.
+  intros.
+  split.
+  - intros.
+    rewrite H.
+    repeat intro.
+    computes_to_inv.
+    rewrite blocked_ret_is_ret in *.
+    econstructor.
+    econstructor.
+    + rewrite <- H.
+      econstructor.  
+    + unfold Ensembles.In.
+      inversion H0. inversion H0'.
+      rewrite H1 in *.
+      rewrite H2 in *.
+      rewrite H.
+      assumption. 
+  - intros.
+    rewrite H.
+    repeat intro.
+    computes_to_inv.
+    rewrite blocked_ret_is_ret in *.
+    econstructor.
+    econstructor.
+    + unfold Ensembles.In.
+      econstructor.
+    + econstructor.
+      split; eauto.
+Qed.
+
+Lemma refine_smaller (A B: Type) (C: A) (f g: A -> Comp B):
+        (forall x, refineEquiv (f x) (g x))
+        -> refineEquiv (x <<- C; f x) (x <<- C; g x).
+Proof. 
+  intros.
+  assert (refineEquiv (f C) (g C)) by apply H.
+  rewrite blocked_ret_is_ret in *.
+  erewrite refineEquiv_bind_unit.
+  erewrite refineEquiv_bind_unit.
+  apply H. 
+Qed.
+
+(*Lemma decompose_function {A B C D}:
+  forall (a: A) (f: A -> C) (g: A -> B) (h: B -> C) (com: C -> Comp D), 
+    f(a) = h(g(a)) -> refineEquiv (y <<- f(a); com(y)) (x <<- g(a); y <<- h(x); com(y)) .
+Proof.
+  intros.
+  split.
+  - intros.
+    rewrite H.
+    repeat intro.
+    
+    computes_to_inv.
+    rewrite blocked_ret_is_ret in *.
+    econstructor.
+    econstructor.
+    + inversion H0. rewrite H1.
+      eassumption.
+    + eassumption.
+  - repeat intro.
+    computes_to_inv.
+    rewrite blocked_ret_is_ret in *. 
+    econstructor.
+    econstructor.
+    + rewrite H in H0.
+      repeat (econstructor; try eauto).
+    + rewrite H in H0.
+      repeat (econstructor; try eauto).
+Qed.
+
+
+Lemma decompose_function2:
+  forall (I O P Q D: Type) (i: I) (f: I -> O) (g: I -> P) (h: I -> Q) (op: P -> Q -> O) (com: O -> Comp D), 
+    f(i) = op (g i) (h i) -> refineEquiv (y <<- f(i); com(y)) (x0 <<- g(i); x1 <<- h(i); y <<- op x0 x1; com(y)) .
+
+Proof.
+  intros; split.
+  - repeat intro.
+    computes_to_inv.
+    rewrite blocked_ret_is_ret in *.
+    rewrite H.
+    econstructor.
+    econstructor.
+    + eauto. inversion H0. inversion H0'. 
+      rewrite H1, H2.
+      eassumption.
+    + eassumption.
+  - repeat intro.
+    computes_to_inv.
+    rewrite blocked_ret_is_ret in *.
+    econstructor.
+    econstructor.
+    + rewrite H in H0.
+      unfold  Ensembles.In.
+      eexists.
+    + econstructor.
+      econstructor.
+      * eexists.
+      * econstructor.
+        econstructor.
+        -- exists.
+        -- rewrite <- H.
+           unfold  Ensembles.In.
+           inversion H0.
+           rewrite H1.
+           assumption.
+Qed.*)

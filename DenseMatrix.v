@@ -51,7 +51,7 @@ Qed.
 
 Section A.
  Variable ME : MatrixElem.
- Add Ring Aring : MEring.
+ Add Field Afield : MEfield.
 
 Definition get_v {ME: MatrixElem} (l: list MEt) (k : nat) := 
   nth_default MEzero l k. 

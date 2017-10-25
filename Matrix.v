@@ -3,6 +3,11 @@ Require Import Coq.Setoids.Setoid.
 Require Import Coq.Classes.Morphisms.
 Require Import Coq.setoid_ring.Ring.
 Require Import Coq.setoid_ring.Ring_theory.
+Require Import Field_theory.
+Require Import Field_tac.
+Require Import PeanoNat.
+Require Import Arith.
+Require Import Omega.
 
 Class MatrixElem :=
   { MEt :> Type;
@@ -14,12 +19,16 @@ Class MatrixElem :=
     MEplus : MEt -> MEt -> MEt;
     MEminus : MEt -> MEt -> MEt;
     MEtimes : MEt -> MEt -> MEt;
-
-    MEring : ring_theory MEzero MEone MEplus MEtimes MEminus MEopp eq }.
+    MEdiv : MEt -> MEt -> MEt;
+    MEinv: MEt -> MEt;
+    
+    MEfield :field_theory MEzero MEone MEplus MEtimes MEminus MEopp MEdiv MEinv eq }.
 
 Infix "*e" := MEtimes (at level 40, left associativity) : ME_scope.
 Infix "+e" := MEplus (at level 50, left associativity) : ME_scope.
 Infix "-e" := MEminus (at level 50, left associativity) : ME_scope.
+Infix "/e" := MEminus (at level 50, left associativity) : ME_scope.
+
 Notation e0 := MEzero.
 Notation e1 := MEone.
 
@@ -97,7 +106,7 @@ Notation sum k f := (fold_nat k (fun acc x => acc +e f x) e0).
 Section MatrixElemOps.
   Context {ME: MatrixElem}.
 
-  Add Ring MatrixElemOpsEtRing : MEring.
+  Add Field MatrixElemOpsEtField : MEfield.
 
   Add Parametric Morphism k : (fun f => sum k f)
       with signature (pointwise_relation _ (@eq MEt) ==> @eq MEt)
@@ -147,6 +156,35 @@ Section MatrixElemOps.
     unfold sum; induction n; simpl; intros; try rewrite IHn; ring.
   Qed.
 
+
+  Lemma sum_e0' :
+    forall n f, (forall i, i < n -> f i = e0) -> (sum n (fun k => f k)) = e0.
+  Proof.
+    unfold sum; induction n; simpl; intros; try rewrite IHn; try ring.
+    - rewrite H; try ring. omega.
+    - intros; rewrite H; try reflexivity; omega. 
+   Qed.
+  
+  Lemma sum_single :
+    forall n f x, x < n -> (forall i, i < n -> i <> x -> f(i) = e0) -> (sum n (fun k => f k)) = f x.
+  Proof.
+    intros.
+    unfold sum; induction n.
+    - inversion H.
+    - destruct (x =? n) eqn:H1.
+      + apply Nat.eqb_eq in H1.
+        rewrite H1.
+        rewrite sum_e0'.
+        * ring.
+        * intros. rewrite H0; try reflexivity; omega.
+      + apply beq_nat_false in H1.
+        assert (x < n) by omega.
+        apply IHn in H2. rewrite H2.
+        rewrite H0 with (i := n); auto.
+        ring.
+        intros.
+        apply H0; auto. 
+  Qed. 
   Notation "Σ{ x } f" :=
     (fold_nat _ (fun acc x => acc +e f) e0)
       (at level 0, format "Σ{ x }  f").
@@ -170,23 +208,15 @@ Class Matrix {ME: MatrixElem} :=
 
     Mget : forall {m n}, (Mt m n) -> nat -> nat -> MEt;
     Mtimes : forall {m n p}, (Mt m n) -> (Mt n p) -> (Mt m p);
-    Melementwise_op: forall {m n}, (MEt -> MEt -> MEt) -> (Mt m n) -> (Mt m n) -> (Mt m n);
           
     Mtimes_correct :
       forall {m n p} (m1: Mt m n) (m2: Mt n p),
       forall i j,
         i < m -> j < p ->
         Mget (Mtimes m1 m2) i j = sum n (fun k => (Mget m1 i k) *e (Mget m2 k j));
-                                     
-    Melementwise_op_correct:
-      forall {m n} (m1: Mt m n) (m2: Mt m n) (op: MEt -> MEt -> MEt),
-      forall i j,
-        i < m -> j < n ->
-        Mget (Melementwise_op op m1 m2) i j = op (Mget m1 i j) (Mget m2 i j)
   }.
 
 Infix "@*" := Mtimes (at level 40, left associativity) : matrix_scope.
-Infix "@+" := (Melementwise_op MEplus) (at level 50, left associativity) : matrix_scope.
 
 Section MatrixOps.
   Context {ME : MatrixElem} {M1 M2: @Matrix ME}.
@@ -208,26 +238,8 @@ Section MatrixProps.
   Variable E: MatrixElem.
   Variable M: @Matrix E.
 
-  Add Ring MatrixPropsEtRing : MEring.
+  Add Field MatrixPropsEtField : MEfield.
 
-  Theorem plus_commu:
-    forall {m n} (m1: Mt m n) (m2 : Mt m n),
-      m1 @+ m2 @= m2 @+ m1.
-  Proof.
-    red; intros.
-    setoid_rewrite Melementwise_op_correct; try assumption.
-    ring.
-  Qed.
-
-  Theorem plus_assoc:
-    forall {m n} (m1: Mt m n) (m2: Mt m n) (m3: Mt m n),
-      (m1 @+ m2) @+ m3 @= m1 @+ (m2 @+ m3).
-  Proof.
-    red; intros.
-    repeat (setoid_rewrite Melementwise_op_correct; try assumption).
-    ring. 
-  Qed.
-  
   Theorem mult_assoc:
     forall {m n p q} (m1: Mt m n) (m2: Mt n p) (m3: Mt p q),
       (m1 @* m2) @* m3 @= m1 @* (m2 @* m3).
@@ -254,25 +266,13 @@ Section MatrixProps.
     ring.
   Qed.
 
-  Theorem plus_mult_dist:
-    forall {m n p} (m1: Mt m n) (m2: Mt m n) (m3: Mt n p),
-      (m1 @+ m2) @* m3 @= m1 @* m3 @+ m2 @* m3.
-  Proof.
-    red; intros.
-    repeat ((setoid_rewrite Mtimes_correct || setoid_rewrite Melementwise_op_correct); try assumption). 
-    replace (sum n (fun k : nat => (m1 @+ m2)@[i, k] *e m3@[k, j]))
-      with (sum n (fun k : nat => m1@[i, k] *e m3@[k, j] +e m2@[i, k] *e m3@[k, j])).
-    - apply sum_distribute.
-    - apply sum_upto_morphism. red. intros.
-      repeat ((setoid_rewrite Mtimes_correct || setoid_rewrite Melementwise_op_correct); try assumption). ring.
-   Qed. 
 End MatrixProps.
 
 Section MatrixProps'.
   Variable E: MatrixElem.
   Variable M1 M2 M3 M12 M23 M12_3 M1_23: @Matrix E.
 
-  Add Ring MatrixPropsEtRing' : MEring.
+  Add Field MatrixPropsEtField' : MEfield.
   
   Definition Mtimes_correct' {M1 M2 M3: @Matrix E} {m n p: nat} 
     (Mtimes: (@Mt _ M1 m n) -> (@Mt _ M2 n p) -> (@Mt _ M3 m p)) := 
@@ -319,5 +319,40 @@ Section MatrixProps'.
 End MatrixProps'.
 
 
+Section MatrixInversion.
+  Variable E: MatrixElem.
+  Variable I: @Matrix E.
+  Add Field MatrixInversionEtField' : MEfield.
+  Variable n: nat. 
+  Definition identity (I: Mt n n) :=  
+    forall M: Mt n n, M @* I @= M.
 
+  Definition ID (I: Mt n n) :=
+    forall i j, i < n -> j < n ->  
+    ((i = j -> I@[i,j] = MEone) /\ (i <> j -> I@[i,j] = MEzero)). 
 
+  Lemma ID_is_identity:
+    forall I, ID I -> identity I.
+  Proof.
+    unfold identity.
+    unfold ID.
+    intros.
+    unfold Meq.
+    intros.
+    rewrite Mtimes_correct; try assumption.
+     
+    rewrite sum_single with (x := j); auto. 
+    - assert (I0@[j, j] = e1).
+      {
+        apply H with (i := j) (j := j); auto.
+      }
+      rewrite H2.
+      ring.
+    - intros.
+      assert (I0@[i0, j] = e0).
+      {
+        apply H with (i := i0) (j := j); auto.
+      }
+      rewrite H4. ring.
+  Qed.
+ End MatrixInversion. 

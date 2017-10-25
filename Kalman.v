@@ -1,4 +1,3 @@
-
 Require Import
         Coq.Lists.List
         Coq.Strings.String
@@ -163,6 +162,8 @@ Section KalmanFilter.
     Axiom sparsify_correct: forall n: nat, forall M : SDM n, M @= sparsify M.
     Axiom densify: forall {n}, SSM n -> SDM n.
     Axiom densify_correct: forall n: nat, forall M : SSM n, M @= densify M.
+    Axiom densify_correct_rev: forall n: nat, forall M : SSM n,  densify M @= M.
+    
     Axiom matrix_eq_commutes :
       forall (m n: nat) ME M1 M2 (m1: @Mt ME M1 m n) (m2: @Mt ME M2 m n),
         m1 @= m2 -> m2 @= m1.
@@ -181,8 +182,15 @@ Section KalmanFilter.
     Axiom Densify_correct: forall n:nat, forall M : SDM n, forall S : SSM n,
             M @= S -> M = densify S.
     Axiom Densify_correct_rev: forall n:nat, forall M : SDM n, forall S : SSM n,
-            M = densify S -> M @= S.    
-    Hint Resolve sparsify_correct densify_correct matrix_eq_commutes solveR_correct multi_assoc Densify_correct Densify_correct_rev: matrices.
+            M = densify S -> M @= S.
+    Axiom dense_sparse_mul: forall {n}, SDM n -> SSM n -> SDM n.
+    Axiom dense_sparse_mul_correct: forall {n}, forall A: SDM n, forall B: SSM n, 
+            dense_sparse_mul A B = A @* densify B. 
+    Axiom sparse_dense_mul: forall {n}, SSM n -> SDM n -> SDM n.
+    Axiom sparse_dense_mul_correct: forall {n}, forall A: SSM n, forall B: SDM n, 
+            sparse_dense_mul A B = densify A @*  B.
+    
+    Hint Resolve sparsify_correct densify_correct densify_correct_rev matrix_eq_commutes solveR_correct multi_assoc Densify_correct Densify_correct_rev dense_sparse_mul_correct sparse_dense_mul_correct: matrices.
     
     hone representation using use_a_sparse_P;
       unfold use_a_sparse_P in *; cleanup; try reveal_body_evar.
@@ -199,7 +207,7 @@ Section KalmanFilter.
                  evar (field: Type);
                  evar (g: type_new_state -> field);
                  evar (f : field -> type_field);
-                 assert (P r_o = f (g r_n)) by (subst g; subst f; eauto with matrices);
+                 assert (X r_o = f (g r_n)) by (subst g; subst f; eauto with matrices);
                  subst field;
                  subst g;
                  subst f
@@ -211,59 +219,50 @@ Section KalmanFilter.
     Ltac end_template :=
         try (simplify with monad laws); finish honing.
     Ltac Cholesky_Optimizer :=
-      rewrite solveR_correct; rewrite Cholesky_DC_correct.
+      rewrite solveR_correct, Cholesky_DC_correct.
    
     Ltac ABv_Optimizer :=
       rewrite ABv_assoc. 
-    
+
+    Ltac sparse_mul_Optimizer :=
+      rewrite <- ?dense_sparse_mul_correct, <- ?sparse_dense_mul_correct. 
+
     Ltac Optimizers :=
-      repeat (Cholesky_Optimizer || ABv_Optimizer).
+      repeat (Cholesky_Optimizer || ABv_Optimizer || sparse_mul_Optimizer).
     
     Ltac ref_block :=
-        repeat (refine blocked ret; Optimizers). 
-    { (* Init *)
-      (*
-      Ltac PickValForInit :=
-        match goal with
-        | [|- refine { r_n | _  = ?XX r_n /\ _} _] => refine pick val {| XX := _|} 
-        end.
-      PickValForInit.*)
-      
+      repeat (refine blocked ret; Optimizers).
+
+
+    
+    Ltac deepUnfolding :=
+      erewrite refine_smaller; [ | intros;  etransitivity; [repeat ((erewrite decompose_computation_left by eauto) || (erewrite decompose_computation_right by eauto)); try deepUnfolding; higher_order_reflexivity| higher_order_reflexivity] ].
+    Ltac Unfolding :=
+       etransitivity;
+      [repeat ((erewrite decompose_computation_left by eauto) || (erewrite decompose_computation_right by eauto)); try deepUnfolding; higher_order_reflexivity| ]; simpl.
+     
+     
+    {
       guess_pick_val.
       end_template. 
     }
 
     {
-      (* Predict *)
-      (*  unfold use_a_sparse_P in *; cleanup.*)
-
-      
-      (*evar (field : Type);
-      evar (g: SparseKalmanState -> field);
-      evar (f : field -> SDM n);
-      assert (P r_o = f (g r_n)) by (subst g; subst f; eauto with matrices);
-      subst field;
-      subst g;
-      subst f.*)
-      
-
-
       clearit r_o r_n.
       ref_block.
+
+      (* evar (xx: Vt n). evar (SPP: SSM n). *)
       guess_pick_val.
       end_template. 
-      
-      
+       
     }
 
     { (* Update *) 
       clearit r_o r_n.
-
-
+      Unfolding.
       ref_block.
-
       guess_pick_val.
-      end_template. 
+      end_template.
     }
 
     cbv beta.

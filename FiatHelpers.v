@@ -293,6 +293,45 @@ Proof.
 Qed.
 
 
+Lemma decompose_computation_unit_unit {A C D E}:
+  forall (a: A) (d: D) (op2: A -> C) (op: C -> D) (com: D -> Comp E), 
+    d = op (op2 a) -> refineEquiv (y <<- d; com(y)) (  x <<- op2 a; y <<- op x; com(y)) .
+Proof.
+  intros; split.
+  - repeat intro. computes_to_inv. rewrite blocked_ret_is_ret in *.
+    repeat (econstructor; try eauto).
+    unfold Ensembles.In.
+    inversion H0. inversion H0'.
+    rewrite <- H1.
+    rewrite H.
+    reflexivity.
+  - intros. rewrite H.
+    repeat intro.
+    computes_to_inv.
+    rewrite blocked_ret_is_ret in *.
+    repeat (econstructor; try eauto).
+Qed.
+
+
+Lemma decompose_computation_unit_compose {A B C D E}:
+  forall (a: A) (b: B) (d: D) (op2: A -> B -> C) (op: C -> D) (com: D -> Comp E), 
+    d = op (op2 a b) -> refineEquiv (y <<- d; com(y)) (x <<- op2 a b; y <<- op x; com(y)) .
+Proof.
+  intros; split.
+  - repeat intro. computes_to_inv. rewrite blocked_ret_is_ret in *.
+    repeat (econstructor; try eauto).
+    unfold Ensembles.In.
+    inversion H0. inversion H0'.
+    rewrite H.
+    rewrite <- H1.
+    reflexivity. 
+  - intros. rewrite H.
+    repeat intro.
+    computes_to_inv.
+    rewrite blocked_ret_is_ret in *.
+    repeat (econstructor; try eauto).
+Qed.
+
 Lemma refine_smaller (A B: Type) (C: A) (f g: A -> Comp B):
         (forall x, refineEquiv (f x) (g x))
         -> refineEquiv (x <<- C; f x) (x <<- C; g x).
@@ -324,6 +363,18 @@ Proof.
      assumption.
 Qed.
 
+Lemma refine_trivial_bind2 {A B}:
+  forall (a: A) (f: A -> Comp B) (g: Comp B),
+      (forall x: A, (f x) = g) -> refineEquiv (x <<- a; f x) (g).
+Proof.
+  intros.
+  rewrite blocked_ret_is_ret in *.
+  split; repeat intro; computes_to_inv; repeat (econstructor; eauto).
+  - unfold Ensembles.In.
+    rewrite H. assumption.
+  - rewrite H in H0'.  assumption.
+Qed.
+
 Lemma refine_substitute {A B}:
       forall (a: A) (f: A -> Comp B),
              refineEquiv (x <<- a; f x) (f a).
@@ -341,8 +392,9 @@ Proof.
      inversion H.
      inversion H0.
      inversion H1.
-     eauto.  
+     eauto. 
 Qed.
+
 
 (*Lemma decompose_function {A B C D}:
   forall (a: A) (f: A -> C) (g: A -> B) (h: B -> C) (com: C -> Comp D), 

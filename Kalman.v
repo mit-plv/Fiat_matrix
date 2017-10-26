@@ -123,6 +123,7 @@ Section KalmanFilter.
         K' <<- r.(P) @* transpose(H) @* inversion(S');
         x' <<- r.(x) &+ K' &* y';
         p' <<- (Id @- K' @* H) @* r.(P);
+        garbage <<- K' @* K' @+ S';
         ret ({| x := x'; P := p' |}, tt)
     }%methDefParsing.
 
@@ -235,46 +236,18 @@ Section KalmanFilter.
 
     Ltac Optimize1 :=
       etransitivity;
-      [repeat (refine blocked ret; Optimizers);
+      [repeat Optimizers; try (erewrite refine_smaller; [ | intros; Optimize1; higher_order_reflexivity]);
       higher_order_reflexivity | ]; simpl.
 
     Ltac singleStepUnfolding :=
-      repeat ((erewrite decompose_computation_left by eauto) || (erewrite decompose_computation_right by eauto) || (erewrite decompose_computation_left_unit by eauto) ||(erewrite decompose_computation_right_unit by eauto)) .
-    Ltac deepUnfolding :=
-      erewrite refine_smaller; [ | intros;  etransitivity; [singleStepUnfolding; try deepUnfolding; higher_order_reflexivity| higher_order_reflexivity] ].
+      repeat ((erewrite decompose_computation_left by eauto) || (erewrite decompose_computation_right by eauto) || (erewrite decompose_computation_left_unit by eauto) ||(erewrite decompose_computation_right_unit by eauto) || (erewrite decompose_computation_unit_unit by eauto) ||  (erewrite decompose_computation_unit_compose by eauto)) .
+    
     Ltac Unfolding :=
        etransitivity;
-      [singleStepUnfolding; try deepUnfolding; higher_order_reflexivity| ]; simpl.
-     
-     
-    {
-      guess_pick_val.
-      end_template. 
-    }
+      [singleStepUnfolding; try (erewrite refine_smaller; [ | intros;  Unfolding; higher_order_reflexivity ]); higher_order_reflexivity| ]; simpl.
 
-    {
-      clearit r_o r_n.
-      ref_block.
-
-      (* evar (xx: Vt n). evar (SPP: SSM n). *)
-      guess_pick_val.
-      end_template. 
-       
-    }
-
-    { (* Update *) 
-      clearit r_o r_n.
-      etransitivity.
-      repeat Optimizers.
-      
-      
-       (etransitivity;
-        [ erewrite refine_substitute by eauto; higher_order_reflexivity | ]).
-       
-      Optimizers. 
-      Unfolding.
-      Ltac step :=
-        (try
+    Ltac removeDup :=
+        repeat ((try
           (etransitivity; [ erewrite refine_trivial_bind by eauto;  higher_order_reflexivity | ])) || 
         match goal with
         | [ H :  NoSubst (?Y = _)|- refine (x0 <<- ?Y; _) _] =>
@@ -284,22 +257,50 @@ Section KalmanFilter.
            etransitivity;
           [ rewrite <- H; higher_order_reflexivity | ]
         | _  => refine blocked ret
-        end.
-      
+        end).
 
-      etransitivity.
-      step.
-      
-      repeat step.       
+    Ltac RemoveUseless :=
+      try (etransitivity; [ erewrite refine_smaller; [ | intros; RemoveUseless; higher_order_reflexivity]; higher_order_reflexivity | ]); simpl; etransitivity; [ first [erewrite refine_trivial_bind2; eauto; progress higher_order_reflexivity|higher_order_reflexivity]  | ]; simpl.
+    
+     Ltac OptimzeReturn :=
+       repeat
+         match goal with
+         | [ H: NoSubst (_ = ?A) |- context [?A]] => rewrite <- H
+         end.
+     
+    {
       guess_pick_val.
-      higher_order_reflexivity.
-      simpl.
-      
+      end_template. 
+    }
+
+    {
+      clearit r_o r_n.
+      Optimize1. 
+      Unfolding.
+      RemoveUseless.
+      removeDup. 
+
+      (* evar (xx: Vt n). evar (SPP: SSM n). *)
+      guess_pick_val.
+      OptimzeReturn.
+      end_template. 
+       
+    }
+
+    { (* Update *) 
+      clearit r_o r_n.
+      Optimize1. 
+      Unfolding.
+      RemoveUseless.
+      removeDup.
+     
+      guess_pick_val.
+      OptimzeReturn.
       end_template.
     }
 
     cbv beta.
-    expose_rets_hidden_under_blets.
+    expose_rets_hidden_under_blets. 
     finish_SharpeningADT_WithoutDelegation.
   Defined.
 

@@ -395,8 +395,70 @@ Proof.
      eauto. 
 Qed.
 
+Lemma blet_equal_blocked_ret {A B}:
+      forall (a: A) (f: A -> Comp B),
+             refineEquiv  (blet x := a in f x) (x <<- a; f x).
+Proof.
+  intros.
+  rewrite blocked_ret_is_ret in *.
+  split.
+  - repeat intro.
+    inversion H.
+    inversion H0.
+    inversion H1.
+    eauto.
+  - repeat intro.
+    computes_to_inv.
+    econstructor.
+    split.
+    + econstructor.
+    + assumption.
+  
+Qed. 
+    
+(* Ltac add_let_in_head2 term new_head expr :=
+  let rec aux head_and_args restore_args_fn :=
+      lazymatch head_and_args with
+      | ?term ?arg => aux term (fun term' => restore_args_fn (term' arg))
+      | ?head => constr:(x <<- expr; restore_args_fn (new_head x))
+      end in
+  let tt := type of term in
+  let term' := aux term (fun y: tt => y) in
+  let reduced := (eval cbv beta in term') in
+  constr:(reduced).
 
-(*Lemma decompose_function {A B C D}:
+Ltac refine_blocked_ret_cleanup2 hd' const :=
+  cbv beta;
+  unfold hd' in *; clear hd';
+  let bvar := fresh "bvar" in
+  let bvar_eqn := fresh "bvar_eqn" in
+  set const as bvar;
+  assert (NoSubst (bvar = const)) as bvar_eqn by reflexivity;
+  clearbody bvar;
+  etransitivity; [| rewrite refine_substitute; higher_order_reflexivity];
+  etransitivity; [rewrite refine_substitute; higher_order_reflexivity |].
+  
+  
+
+Tactic Notation "refine" "blocked" "ret2" :=
+  lazymatch goal with
+  | [  |- refine (Bind (blocked_ret ?const) _) ?comp] =>
+    let old_evar := head comp in
+    let old_evar_type := type of old_evar in
+    let const_type := type of const in
+    let new_evar := fresh in
+    evar (new_evar: const_type -> old_evar_type);
+    let refined := add_let_in_head2 comp new_evar const in
+    first [ unify comp refined |
+            let aa := args comp in
+            fail 1 "Unification of" comp "and" refined
+                 "failed.  Make sure that" const
+                 "can be written as a function of" aa ];
+    refine_blocked_ret_cleanup2 new_evar const
+  end.
+
+  
+Lemma decompose_function {A B C D}:
   forall (a: A) (f: A -> C) (g: A -> B) (h: B -> C) (com: C -> Comp D), 
     f(a) = h(g(a)) -> refineEquiv (y <<- f(a); com(y)) (x <<- g(a); y <<- h(x); com(y)) .
 Proof.

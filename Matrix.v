@@ -321,16 +321,17 @@ End MatrixProps'.
 
 Section MatrixInversion.
   Variable E: MatrixElem.
-  Variable I: @Matrix E.
+  Variable M: @Matrix E.
   Add Field MatrixInversionEtField' : MEfield.
-  Variable n: nat. 
+  Variable n: nat.
+
   Definition identity (I: Mt n n) :=  
     forall M: Mt n n, M @* I @= M.
 
   Definition ID (I: Mt n n) :=
     forall i j, i < n -> j < n ->  
     ((i = j -> I@[i,j] = MEone) /\ (i <> j -> I@[i,j] = MEzero)). 
-
+    
   Lemma ID_is_identity:
     forall I, ID I -> identity I.
   Proof.
@@ -342,17 +343,19 @@ Section MatrixInversion.
     rewrite Mtimes_correct; try assumption.
      
     rewrite sum_single with (x := j); auto. 
-    - assert (I0@[j, j] = e1).
+    - assert (I@[j, j] = e1).
       {
         apply H with (i := j) (j := j); auto.
       }
       rewrite H2.
       ring.
     - intros.
-      assert (I0@[i0, j] = e0).
+      assert (I@[i0, j] = e0).
       {
         apply H with (i := i0) (j := j); auto.
       }
       rewrite H4. ring.
   Qed.
+
+  
  End MatrixInversion. 

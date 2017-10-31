@@ -190,8 +190,10 @@ Section KalmanFilter.
     Axiom sparse_dense_mul: forall {n}, SSM n -> SDM n -> SDM n.
     Axiom sparse_dense_mul_correct: forall {n}, forall A: SSM n, forall B: SDM n, 
             sparse_dense_mul A B = densify A @*  B.
-    
-    Hint Resolve sparsify_correct densify_correct densify_correct_rev matrix_eq_commutes solveR_correct multi_assoc Densify_correct Densify_correct_rev dense_sparse_mul_correct sparse_dense_mul_correct: matrices.
+    Axiom dense_sparse_mul_to_sparse: forall {n}, SDM n -> SSM n -> SSM n.
+    Axiom dense_sparse_mul_to_sparse_correct: forall {n}, forall A: SDM n, forall B: SSM n, 
+            sparsify (dense_sparse_mul A B) = dense_sparse_mul_to_sparse A B. 
+    Hint Resolve sparsify_correct densify_correct densify_correct_rev matrix_eq_commutes solveR_correct multi_assoc Densify_correct Densify_correct_rev dense_sparse_mul_correct sparse_dense_mul_correct dense_sparse_mul_to_sparse_correct: matrices.
     
     hone representation using use_a_sparse_P;
       unfold use_a_sparse_P in *; cleanup; try reveal_body_evar.
@@ -226,7 +228,7 @@ Section KalmanFilter.
       rewrite ABv_assoc. 
 
     Ltac sparse_mul_Optimizer :=
-      rewrite <- ?dense_sparse_mul_correct, <- ?sparse_dense_mul_correct. 
+      rewrite <- ?dense_sparse_mul_correct, <- ?sparse_dense_mul_correct, ?dense_sparse_mul_to_sparse_correct. 
 
     Ltac Optimizers :=
       repeat (Cholesky_Optimizer || ABv_Optimizer || sparse_mul_Optimizer).
@@ -247,6 +249,7 @@ Section KalmanFilter.
       [singleStepUnfolding; try (erewrite refine_smaller; [ | intros;  Unfolding; higher_order_reflexivity ]); higher_order_reflexivity| ]; simpl.
 
     Ltac removeDup :=
+      etransitivity; [
         repeat ((try
           (etransitivity; [ erewrite refine_trivial_bind by eauto;  higher_order_reflexivity | ])) || 
         match goal with
@@ -257,17 +260,33 @@ Section KalmanFilter.
            etransitivity;
           [ rewrite <- H; higher_order_reflexivity | ]
         | _  => refine blocked ret
-        end).
+        end); higher_order_reflexivity; converts_to_blocked_ret; simpl | ].
 
     Ltac RemoveUseless :=
       try (etransitivity; [ erewrite refine_smaller; [ | intros; RemoveUseless; higher_order_reflexivity]; higher_order_reflexivity | ]); simpl; etransitivity; [ first [erewrite refine_trivial_bind2; eauto; progress higher_order_reflexivity|higher_order_reflexivity]  | ]; simpl.
     
-     Ltac OptimzeReturn :=
-       repeat
-         match goal with
-         | [ H: NoSubst (_ = ?A) |- context [?A]] => rewrite <- H
-         end.
      
+     Ltac converts_to_blocked_ret :=
+      etransitivity;
+      [try rewrite blet_equal_blocked_ret; try (erewrite refine_smaller; [ | intros; converts_to_blocked_ret; higher_order_reflexivity]);
+       higher_order_reflexivity | ]; simpl.
+
+      Ltac substitute_all :=
+      etransitivity;
+      [repeat rewrite refine_substitute;
+       higher_order_reflexivity | ]; simpl.
+
+     Lemma templem:
+        forall B C D E,
+            refineEquiv (r_n' <- ret {|Sx := B; SP := C |}; ret (r_n', {| x := D; P := E|}))
+                        (bb <<- B; cc <<- C; dd <<- D; ee <<- E; r_n' <- ret {|Sx := bb; SP := cc |}; ret (r_n', {| x := dd; P := ee|})).
+     Admitted.
+
+     Lemma templem2:
+        forall B C,
+            refineEquiv (r_n' <- ret {|Sx := B; SP := C |}; ret (r_n', ()))
+                        (bb <<- B; cc <<- C; r_n' <- ret {|Sx := bb; SP := cc |}; ret (r_n', ())).
+      Admitted.
     {
       guess_pick_val.
       end_template. 
@@ -275,28 +294,52 @@ Section KalmanFilter.
 
     {
       clearit r_o r_n.
+      
+      etransitivity.
+      repeat refine blocked ret.
+      guess_pick_val.
+      higher_order_reflexivity.
+      simpl.
+
+      converts_to_blocked_ret.
+      substitute_all.
+      
+      etransitivity.
+      rewrite templem.
+      higher_order_reflexivity.
+      
       Optimize1. 
       Unfolding.
       RemoveUseless.
       removeDup. 
 
       (* evar (xx: Vt n). evar (SPP: SSM n). *)
-      guess_pick_val.
-      OptimzeReturn.
       end_template. 
        
     }
 
     { (* Update *) 
       clearit r_o r_n.
+      
+      etransitivity.
+      repeat refine blocked ret.
+      guess_pick_val.
+      higher_order_reflexivity.
+      simpl.
+
+      converts_to_blocked_ret.
+      substitute_all.
+      
+      etransitivity.
+      rewrite templem2.
+      higher_order_reflexivity.
+      
       Optimize1. 
       Unfolding.
       RemoveUseless.
-      removeDup.
-     
-      guess_pick_val.
-      OptimzeReturn.
-      end_template.
+      removeDup. 
+
+      end_template. 
     }
 
     cbv beta.

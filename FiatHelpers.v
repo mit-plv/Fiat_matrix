@@ -397,23 +397,22 @@ Qed.
 
 Lemma blet_equal_blocked_ret {A B}:
       forall (a: A) (f: A -> Comp B),
-             refineEquiv  (blet x := a in f x) (x <<- a; f x).
+             refineEquiv (x <<- a; f x) (blet x := a in f x).
 Proof.
   intros.
   rewrite blocked_ret_is_ret in *.
   split.
-  - repeat intro.
-    inversion H.
-    inversion H0.
-    inversion H1.
-    eauto.
   - repeat intro.
     computes_to_inv.
     econstructor.
     split.
     + econstructor.
     + assumption.
-  
+  - repeat intro.
+    inversion H.
+    inversion H0.
+    inversion H1.
+    eauto.
 Qed. 
     
 (* Ltac add_let_in_head2 term new_head expr :=

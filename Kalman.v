@@ -220,7 +220,7 @@ Section KalmanFilter.
         let SP := fresh "SP" in
          evar (x: Vt n); evar (SP: SSM n); refine pick val {| Sx := x; SP := SP |}; subst x; subst SP; try (split; simpl; eauto with matrices).
     Ltac end_template :=
-        try (simplify with monad laws); finish honing.
+        repeat refine blocked ret; try (simplify with monad laws); finish honing.
     Ltac Cholesky_Optimizer :=
       rewrite solveR_correct, Cholesky_DC_correct.
    
@@ -246,12 +246,29 @@ Section KalmanFilter.
     
     Ltac Unfolding :=
        etransitivity;
-      [singleStepUnfolding; try (erewrite refine_smaller; [ | intros;  Unfolding; higher_order_reflexivity ]); higher_order_reflexivity| ]; simpl.
+       [singleStepUnfolding;
+        try
+          (erewrite refine_smaller;
+           [ | intros;  Unfolding; higher_order_reflexivity ]);
+        higher_order_reflexivity| ];
+       simpl.
 
+    Ltac converts_to_blocked_ret :=
+      etransitivity;
+      [try rewrite blet_equal_blocked_ret;
+       try
+         (erewrite refine_smaller;
+          [ | intros; converts_to_blocked_ret; higher_order_reflexivity]);
+       higher_order_reflexivity | ];
+      simpl.
+
+         
     Ltac removeDup :=
       etransitivity; [
-        repeat ((try
-          (etransitivity; [ erewrite refine_trivial_bind by eauto;  higher_order_reflexivity | ])) || 
+        repeat
+          ((try
+              (etransitivity;
+               [ erewrite refine_trivial_bind by eauto; higher_order_reflexivity | ]))       || 
         match goal with
         | [ H :  NoSubst (?Y = _)|- refine (x0 <<- ?Y; _) _] =>
           etransitivity;
@@ -260,21 +277,26 @@ Section KalmanFilter.
            etransitivity;
           [ rewrite <- H; higher_order_reflexivity | ]
         | _  => refine blocked ret
-        end); higher_order_reflexivity; converts_to_blocked_ret; simpl | ].
+        end);
+        higher_order_reflexivity | ];
+      simpl;
+      converts_to_blocked_ret.
 
     Ltac RemoveUseless :=
-      try (etransitivity; [ erewrite refine_smaller; [ | intros; RemoveUseless; higher_order_reflexivity]; higher_order_reflexivity | ]); simpl; etransitivity; [ first [erewrite refine_trivial_bind2; eauto; progress higher_order_reflexivity|higher_order_reflexivity]  | ]; simpl.
+      try
+        (etransitivity;
+         [ erewrite refine_smaller;
+           [ | intros; RemoveUseless; higher_order_reflexivity];
+           higher_order_reflexivity | ]);
+      simpl; etransitivity;
+      [ first [erewrite refine_trivial_bind2; eauto; progress higher_order_reflexivity|higher_order_reflexivity]  | ];
+      simpl.
     
-     
-     Ltac converts_to_blocked_ret :=
-      etransitivity;
-      [try rewrite blet_equal_blocked_ret; try (erewrite refine_smaller; [ | intros; converts_to_blocked_ret; higher_order_reflexivity]);
-       higher_order_reflexivity | ]; simpl.
 
       Ltac substitute_all :=
-      etransitivity;
-      [repeat rewrite refine_substitute;
-       higher_order_reflexivity | ]; simpl.
+        etransitivity;
+        [repeat rewrite refine_substitute;
+         higher_order_reflexivity | ]; simpl.
 
      Lemma templem:
         forall B C D E,
@@ -313,7 +335,6 @@ Section KalmanFilter.
       RemoveUseless.
       removeDup. 
 
-      (* evar (xx: Vt n). evar (SPP: SSM n). *)
       end_template. 
        
     }

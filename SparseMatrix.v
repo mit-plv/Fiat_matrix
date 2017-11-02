@@ -48,6 +48,17 @@ Proof.
       apply H.
 Qed.  
 
+Lemma nth_default_map_in_range : forall A B X d d0 i, forall f: A -> B, 
+  i < length X -> nth_default d0 (map f X) i =  f (nth_default d X i). 
+Proof. 
+  intros A B X.  
+  induction X as [| v X IHX]. 
+  - intros d d0 i0 f H. inversion H. 
+  - intros d d0 i0 f H. destruct i0. 
+    + rewrite nth_default_0. simpl. rewrite nth_default_0. reflexivity. 
+    + rewrite nth_default_S. simpl. rewrite nth_default_S. apply IHX. 
+      simpl in H. omega. 
+Qed.
 
 (** *Row major matrix, but for each row, we only store some non-zero elements. 
      in increased index order; efficient storage but not efficient multiplication *)
@@ -68,6 +79,128 @@ if andb (i <? m) (j <? n) then
   get_v (nth_default nil M i) j
 else
   MEzero.
+
+
+Parameter is_eq_dec : forall x y: MEt, { eq x y } + { ~ eq x y }.
+ Print is_eq_dec. 
+Fixpoint generate_row  (f: nat -> nat -> MEt) (j n i: nat) :=
+  match j with
+  | 0 => nil
+  | S j' =>
+    if is_eq_dec (f i (n - j)) (MEzero) then
+      generate_row f  j' n i
+    else
+      (n - j, f i (n - j)):: generate_row f j' n i
+  end.
+
+Print map.
+
+Fixpoint nat_list (i m: nat) :=
+  match i with
+  | 0 => nil
+  | S i' => (m - i):: nat_list i' m
+  end.
+
+Definition Generate  (m n: nat) (f: nat -> nat -> MEt) :=
+  map (generate_row f n n) (nat_list m m). 
+
+Lemma nat_list_length: forall i m, length (nat_list i m) = i.
+  Proof.
+    intros.
+    induction i; try eauto.
+    simpl.
+    rewrite IHi.
+    reflexivity.
+  Qed.
+
+Lemma nat_list_element: forall i m j,
+      j < i -> nth_default O (nat_list i m) j = m + j - i.
+Proof.
+    intros.
+    generalize dependent j. 
+    induction i; try eauto.
+    - intros.
+      inversion H.
+    - intros.
+      simpl.
+      destruct j.
+      + unfold nth_default.
+        unfold nth_error.
+        omega.
+      + assert (j < i) by omega.
+        apply IHi in H0.
+        rewrite nth_default_S.
+        rewrite H0.
+        omega.
+Qed.
+  
+Lemma generate_get_row_correct:
+  forall m n f i j,
+    i < m -> j < n -> get m n (Generate m n f) i j = get_v (generate_row f n n i) j.
+Proof.
+  intros.
+  unfold Generate.
+  unfold get.
+  assert (i <? m = true) by (apply Nat.leb_le; omega).
+  assert (j <? n = true) by (apply Nat.leb_le; omega).
+  rewrite H1, H2.
+  simpl.
+  erewrite nth_default_map_in_range.
+  - rewrite nat_list_element; auto.
+    replace (m + i - m) with i by omega.
+    reflexivity.
+  - rewrite nat_list_length. assumption. 
+Qed.
+
+Lemma generate_row_get_element_correct_lemma: forall k n i j f, 
+    j < n - k -> get_v (generate_row f k n i) j = e0.
+Proof.
+  intros.
+  induction k.
+  - simpl. reflexivity.
+  - simpl.
+    destruct (is_eq_dec (f i (n - S k))).
+    + apply IHk.  omega.
+    + simpl.
+      assert (j <> n - S k) by omega.
+      apply Nat.eqb_neq in H0. rewrite H0.
+      apply IHk.
+      omega.
+Qed. 
+
+Lemma generate_row_get_element_correct:
+  forall i j m n k f, 
+    i < m -> n - k <= j -> j < n -> k <= n -> get_v (generate_row f k n i) j = f i j. 
+Proof.
+  intros.
+  generalize dependent j.
+  induction k; intros.
+  - omega.
+  - simpl in *.
+    destruct (is_eq_dec (f i (n - S k)) e0).
+    + destruct (beq_nat (n - S k) j) eqn: eq.
+      * apply beq_nat_true in eq.
+       
+        destruct (beq_nat (n - k) j) eqn: eq2.
+        --- apply beq_nat_true in eq2.
+            apply IHk; try omega.
+        --- apply beq_nat_false in eq2.
+            rewrite generate_row_get_element_correct_lemma; try omega.
+            rewrite eq in e.
+            rewrite e.
+            reflexivity.
+      * apply beq_nat_false in eq.
+        rewrite IHk; try omega.
+        reflexivity.
+    + cbn.
+      destruct (beq_nat j (n - S k)) eqn: eq.
+      * apply beq_nat_true in eq.
+        rewrite <- eq.
+        rewrite generate_row_get_element_correct_lemma; try omega.
+        ring.
+      * apply beq_nat_false in eq.
+        apply IHk; try omega.
+Qed.
 
 Fixpoint v_v_mul_le {ME: MatrixElem} (m n p i j k: nat) (v : list (nat * MEt)) (M2: list (list (nat * MEt))) :=
   match v with 
@@ -94,6 +227,7 @@ Fixpoint Matrix_mul {ME: MatrixElem} (m n p k: nat) (M1 M2: list (list (nat * ME
   | 0 => @nil(list  (nat * MEt))
   | S k' => v_matrix_mul m n p (m - k) p M1 M2::Matrix_mul m n p k' M1 M2
   end. 
+
 
 Lemma v_v_mul_induct: forall m n p i j k v M2, 
   v_v_mul_le m n p i j k v M2 +e v_v_mul_eq m n p i j k v M2 = v_v_mul_le m n p i j (S k) v M2. 
@@ -158,6 +292,8 @@ Proof.
     + omega. 
 Qed. 
 
+
+
 Lemma Mtimes_row : forall m n p k M1 M2 i, 
   k <= m -> i < k -> nth_default nil (Matrix_mul m n p k M1 M2) i = v_matrix_mul m n p (m - k + i) p M1 M2. 
 Proof. 
@@ -208,12 +344,15 @@ Proof.
       apply IHj; try apply H1. 
 Qed. 
 
+
 End A. 
+
 
 Definition SparseMatrix {ME: MatrixElem} : Matrix.
  unshelve eapply {| Mt m n := list (list (nat * MEt));
                     Mget m n mx i j := get m n mx i j; 
-                    Mtimes m n p m1 m2 := Matrix_mul m n p m m1 m2 |}.
+                    Mtimes m n p m1 m2 := Matrix_mul m n p m m1 m2;
+                    Mfill m n f := Generate ME m n f|}.
   simpl. intros. 
   unfold get at 1. 
   assert (H1: i <? m = true).
@@ -225,5 +364,10 @@ Definition SparseMatrix {ME: MatrixElem} : Matrix.
   assert (H3: (m - m + i) = i). { omega. }
   rewrite H3. 
   rewrite Mtimes_col; try omega.
-  reflexivity. 
+  reflexivity.
+
+  simpl.
+  intros. 
+  rewrite generate_get_row_correct; try assumption.
+  rewrite generate_row_get_element_correct with (m := m); try assumption. 
 Defined.

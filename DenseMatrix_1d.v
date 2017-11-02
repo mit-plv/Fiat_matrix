@@ -50,7 +50,7 @@ Qed.
 
 Section A.
  Variable ME : MatrixElem.
- Add Ring Aring : MEring.
+ Add Field Afield : MEfield.
 
 
 Definition get {ME: MatrixElem} (m n: nat) (M: list MEt) (i j : nat) :=
@@ -114,7 +114,7 @@ Definition DenseMatrix {ME: MatrixElem} : Matrix.
  unshelve eapply {| Mt m n := list  MEt;
                     Mget m n mx i j := get m n mx i j; 
                     Mtimes m n p m1 m2 := Matrix_mul m n p m1 m2;
-                    Melementwise_op m n op m1 m2:= Matrix_elem_op op m n m1 m2|}.
+                    Mfill m n f:= Generate m n (m * n) (fun x => f (x / n) (x mod n))|}.
  - intros.  
    unfold Matrix_mul. 
    rewrite Generate_get; try assumption.
@@ -125,14 +125,16 @@ Definition DenseMatrix {ME: MatrixElem} : Matrix.
      rewrite Nat.mod_small; auto.
    + apply Nat.div_unique with (a := (i * p + j)) (b := p) (r := j); auto.
      rewrite mult_comm. reflexivity.
- - intros.  
-   unfold Matrix_elem_op. 
-   rewrite Generate_get; try assumption.
-   replace ((i * n + j) / n) with (i).
-   replace ((i * n + j) mod n) with (j).
-   reflexivity.
-   + rewrite plus_comm. rewrite Nat.mod_add; try omega.
-     rewrite Nat.mod_small; auto.
-   + apply Nat.div_unique with (a := (i * n + j)) (b := n) (r := j); auto.
-     rewrite mult_comm. reflexivity.
+ - intros.
+   simpl.
+   rewrite Generate_get; auto.
+   Print Nat.div_unique.
+   rewrite <- Nat.div_unique with (b := n) (q := i) (r := j) (a := i * n + j); auto; try omega.
+   Focus 2.
+   rewrite Nat.mul_comm. reflexivity.
+
+   rewrite Nat.add_comm. 
+   rewrite Nat.mod_add; try omega.
+   rewrite Nat.mod_small; try omega.
+   reflexivity. 
 Defined.

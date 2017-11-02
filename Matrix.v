@@ -208,12 +208,19 @@ Class Matrix {ME: MatrixElem} :=
 
     Mget : forall {m n}, (Mt m n) -> nat -> nat -> MEt;
     Mtimes : forall {m n p}, (Mt m n) -> (Mt n p) -> (Mt m p);
-          
+
     Mtimes_correct :
       forall {m n p} (m1: Mt m n) (m2: Mt n p),
       forall i j,
         i < m -> j < p ->
         Mget (Mtimes m1 m2) i j = sum n (fun k => (Mget m1 i k) *e (Mget m2 k j));
+    
+    Mfill: forall {m n}, (nat -> nat -> MEt) -> (Mt m n);
+    Mfill_correct :
+      forall {m n} (f: nat -> nat -> MEt),
+      forall i j,
+        i < m -> j < n ->
+        Mget (@Mfill m n f) i j = f i j;
   }.
 
 Infix "@*" := Mtimes (at level 40, left associativity) : matrix_scope.

@@ -255,7 +255,7 @@ Section KalmanFilter.
 
     Ltac converts_to_blocked_ret :=
       etransitivity;
-      [try rewrite blet_equal_blocked_ret;
+      [try rewrite <- blet_equal_blocked_ret;
        try
          (erewrite refine_smaller;
           [ | intros; converts_to_blocked_ret; higher_order_reflexivity]);
@@ -345,6 +345,7 @@ Section KalmanFilter.
       etransitivity.
       repeat refine blocked ret.
       guess_pick_val.
+      (*simplify with monad laws.*) 
       higher_order_reflexivity.
       simpl.
 
@@ -364,7 +365,7 @@ Section KalmanFilter.
     }
 
     cbv beta.
-    expose_rets_hidden_under_blets. 
+    expose_rets_hidden_under_blets.
     finish_SharpeningADT_WithoutDelegation.
   Defined.
 

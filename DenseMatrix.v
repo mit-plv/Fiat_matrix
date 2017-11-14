@@ -7,7 +7,6 @@ Require Import Coq.setoid_ring.Ring.
 Require Import Coq.setoid_ring.Ring_theory.
 
 
-
 Lemma nth_default_0: forall A: Type, forall a b : A, forall l: list A, 
   nth_default b (a::l) 0 = a.
 Proof. 
@@ -53,78 +52,89 @@ Section A.
  Variable ME : MatrixElem.
  Add Field Afield : MEfield.
 
-Definition get_v {ME: MatrixElem} (l: list MEt) (k : nat) := 
-  nth_default MEzero l k. 
 
-Definition get {ME: MatrixElem} m n (M: list (list MEt)) (i j : nat) := 
-if andb (i <? m) (j <? n) then
-  get_v (nth_default nil M i) j
-else
-  MEzero.
+Definition get {ME: MatrixElem} (m n: nat) (M: list MEt) (i j : nat) :=
+  nth_default MEzero M (i * n + j). 
 
-
-Fixpoint v_matrix_mul {ME: MatrixElem} (m n p i j: nat) (M1 M2: list (list MEt)) :=
-  match j with 
-  | 0 => nil
-  | S j' => sum n (fun k => (get m n M1 i k) *e (get n p M2 k (p - j))) :: v_matrix_mul m n p i j' M1 M2
-  end. 
-
-Fixpoint Matrix_mul {ME: MatrixElem} (m n p k: nat) (M1 M2: list (list MEt)):= 
+Fixpoint Generate {ME: MatrixElem} (m n k: nat) (f: nat -> MEt) :=
   match k with 
-  | 0 => @nil(list  MEt)
-  | S k' => v_matrix_mul m n p (m - k) p M1 M2::Matrix_mul m n p k' M1 M2
-  end. 
+  | 0 => @nil(MEt)
+  | S k' => (f (m * n - k)) :: Generate m n k' f
+  end.
 
-Lemma Mtimes_row : forall m n p k M1 M2 i, 
-  k <= m -> i < k -> nth_default nil (Matrix_mul m n p k M1 M2) i = v_matrix_mul m n p (m - k + i) p M1 M2. 
-Proof. 
-  simpl; intros.
-  generalize dependent i. 
-  induction k as [| k IHk]; intros. 
-  - inversion H0. 
-  - destruct i. 
-    + cbn. rewrite Nat.add_0_r. reflexivity. 
-    + cbn. rewrite nth_default_S. 
-      assert (H3: m - S k + S i = m - k + i). 
-      { omega. } rewrite H3. 
-      assert (H4: k <= m). { omega. }
-      apply IHk with (i :=i) in H4. 
-      * rewrite H4. reflexivity.
-      * omega. 
-Qed. 
+Definition Matrix_mul {ME: MatrixElem} (m n p: nat) (M1 M2: list MEt):=
+  Generate m p (m * p) (fun k => (sum n (fun i => get m n M1 (Nat.div k  p) i *e get n p M2 i (Nat.modulo k p)))).
 
-Lemma Mtimes_col : forall m n p i j k M1 M2, 
-  j <= p -> k < j -> get_v (v_matrix_mul m n p i j M1 M2) k = sum n (fun k0 => (get m n M1 i k0) *e (get n p M2 k0 (p - j + k))).
-Proof. 
-  simpl; intros.  
-  generalize dependent k.
-  induction j as [| j IHj]; intros.
-  - inversion H0.
-  - destruct k. 
-    + cbn. rewrite Nat.add_0_r. reflexivity. 
-    + cbn. unfold get_v. rewrite nth_default_S. 
-      assert (H1: p - S j + S k = p - j + k). { omega. }
-      rewrite H1. assert (H2: j <= p). { omega. }
-      assert (H3: k < j). { omega. }
-      apply IHj; try assumption. 
-Qed.
+Definition Matrix_elem_op {ME: MatrixElem} (op: MEt -> MEt -> MEt) (m n: nat) (M1 M2: list MEt):=
+  Generate m n (m * n) (fun k => op (get m n M1 (Nat.div k n) (Nat.modulo k n)) (get m n M2 (Nat.div k n) (Nat.modulo k n))).
 End A. 
 
+Lemma Generate_index: forall {ME: MatrixElem} (m n l i: nat) (f: nat -> MEt),
+   i < l -> 
+    nth_default MEzero (Generate m n l f) i = f(m * n + i - l).
+Proof.
+  intros.
+  generalize dependent i. induction l; intros.
+  - inversion H.
+  - cbn.
+    destruct i.
+    + rewrite nth_default_0.  auto.
+    + rewrite nth_default_S.
+      rewrite IHl; try omega.
+      replace (m * n + i - l) with (m * n + (S i) - (S l)) by omega.
+      reflexivity.
+Qed. 
+
+Corollary Generate_get: forall {ME: MatrixElem} (m n i j: nat) (f: nat -> MEt),
+   i < m -> j < n -> 
+   get m n (Generate m n (m * n) f) i j = f(i * n + j).
+Proof.
+  intros.
+  unfold get.
+  rewrite Generate_index.
+  - rewrite minus_plus. reflexivity.
+  - destruct m; try omega.
+    destruct n; try omega.
+    
+    assert (i <= m) by omega.
+    assert (j <= n) by omega.
+    assert (i * S n <= m * S n) by (apply mult_le_compat_r; assumption).
+    assert (i * S n + j <= m * S n + j) by (apply plus_le_compat_r; assumption).
+    assert (m * S n + j <= m * S n + n) by (apply plus_le_compat_l; assumption).
+    assert (m * S n + n < S m * S n).
+    {
+      simpl.
+      rewrite <- mult_n_Sm.
+      omega.
+    }
+    omega.
+Qed.
+
 Definition DenseMatrix {ME: MatrixElem} : Matrix.
- unshelve eapply {| Mt m n := list (list MEt);
+ unshelve eapply {| Mt m n := list  MEt;
                     Mget m n mx i j := get m n mx i j; 
-                    Mtimes m n p m1 m2 := Matrix_mul m n p m m1 m2 |}.
-  simpl. intros. 
-  unfold get at 1. 
-  assert (H1: i <? m = true).
-  { rewrite Nat.ltb_antisym. apply Bool.negb_true_iff. apply Nat.leb_gt. apply H. }
-  assert (H2: j <? p = true).
-  { rewrite Nat.ltb_antisym. apply Bool.negb_true_iff. apply Nat.leb_gt. apply H0. }
-  rewrite H1. rewrite H2. simpl. 
-  rewrite Mtimes_row; try omega. 
-  assert (H3: (m - m + i) = i). { omega. }
-  rewrite H3. 
-  rewrite Mtimes_col; try omega.
-  assert (H4: p - p + j = j). { omega. } rewrite H4. 
-  reflexivity. 
+                    Mtimes m n p m1 m2 := Matrix_mul m n p m1 m2;
+                    Mfill m n f:= Generate m n (m * n) (fun x => f (x / n) (x mod n))|}.
+ - intros.  
+   unfold Matrix_mul. 
+   rewrite Generate_get; try assumption.
+   replace ((i * p + j) / p) with (i).
+   replace ((i * p + j) mod p) with (j).
+   reflexivity.
+   + rewrite plus_comm. rewrite Nat.mod_add; try omega.
+     rewrite Nat.mod_small; auto.
+   + apply Nat.div_unique with (a := (i * p + j)) (b := p) (r := j); auto.
+     rewrite mult_comm. reflexivity.
+ - intros.
+   simpl.
+   rewrite Generate_get; auto.
+   Print Nat.div_unique.
+   rewrite <- Nat.div_unique with (b := n) (q := i) (r := j) (a := i * n + j); auto; try omega.
+   Focus 2.
+   rewrite Nat.mul_comm. reflexivity.
+
+   rewrite Nat.add_comm. 
+   rewrite Nat.mod_add; try omega.
+   rewrite Nat.mod_small; try omega.
+   reflexivity. 
 Defined.

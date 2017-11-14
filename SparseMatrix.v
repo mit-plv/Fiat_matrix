@@ -369,5 +369,6 @@ Definition SparseMatrix {ME: MatrixElem} : Matrix.
   simpl.
   intros. 
   rewrite generate_get_row_correct; try assumption.
-  rewrite generate_row_get_element_correct with (m := m); try assumption. 
+  rewrite generate_row_get_element_correct with (m := m); try omega.
+  reflexivity. 
 Defined.

@@ -16,12 +16,8 @@ Notation SDM n := (Mt (ME := E) (Matrix := DenseMatrix) n n).
 Notation SSM n := (Mt (ME := E) (Matrix := SparseMatrix) n n).
 
 Axiom Vt: forall n: nat, Type.
-
-Axiom transpose : forall {n}, SDM n -> SDM n.
-Axiom Mplus : forall {n}, SDM n -> SDM n -> SDM n.
-Infix "@+" := Mplus (at level 50, left associativity) : matrix_scope.
-Axiom Mminus : forall {n}, SDM n -> SDM n -> SDM n.
-Infix "@-" := Mminus (at level 50, left associativity) : matrix_scope.
+Definition transpose {n} (A : SDM n) :=
+  @Mfill E DenseMatrix n n (fun i j => Mget A j i).
 Axiom MVtimes : forall {n}, SDM n -> Vt n -> Vt n.
 Axiom inversion : forall {n}, SDM n -> SDM n.
 Infix "&*" := MVtimes (at level 40, left associativity) : matrix_scope.
@@ -29,7 +25,7 @@ Axiom Vplus : forall {n}, Vt n -> Vt n -> Vt n.
 Infix "&+" := Vplus (at level 50, left associativity) : matrix_scope.
 Axiom Vminus : forall {n}, Vt n -> Vt n -> Vt n.
 Infix "&-" := Vminus (at level 50, left associativity) : matrix_scope.
-Axiom Id : forall {n}, SDM n.
+Definition Id {n} := I n E DenseMatrix.
 
 Arguments Mtimes : simpl never.
 (* Arguments DenseMatrix : simpl never. *)
@@ -159,11 +155,37 @@ Section KalmanFilter.
 
     Open Scope string_scope.
 
-    Axiom sparsify: forall {n}, SDM n -> SSM n.
-    Axiom sparsify_correct: forall n: nat, forall M : SDM n, M @= sparsify M.
-    Axiom densify: forall {n}, SSM n -> SDM n.
-    Axiom densify_correct: forall n: nat, forall M : SSM n, M @= densify M.
-    Axiom densify_correct_rev: forall n: nat, forall M : SSM n,  densify M @= M.
+    Definition sparsify {n} (A: SDM n) := @Mfill E SparseMatrix n n (fun i j => Mget A i j). 
+    Lemma sparsify_correct: forall n: nat, forall M : SDM n, M @= sparsify M.
+    Proof.
+      intros.
+      unfold sparsify.
+      unfold "@=".
+      intros. 
+      rewrite Mfill_correct; try assumption.
+      reflexivity.
+    Qed.
+
+    (* can be optimized *) 
+    Definition densify {n} (A: SSM n) := @Mfill E DenseMatrix n n (fun i j => Mget A i j). 
+    Lemma densify_correct: forall n: nat, forall M : SSM n, M @= densify M.
+    Proof.
+      intros.
+      unfold densify.
+      unfold "@=".
+      intros.
+      rewrite Mfill_correct; try assumption.
+      reflexivity.
+    Qed.
+    Lemma densify_correct_rev: forall n: nat, forall M : SSM n,  densify M @= M.
+    Proof.
+      intros.
+      unfold densify.
+      unfold "@=".
+      intros.
+      rewrite Mfill_correct; try assumption.
+      reflexivity.
+    Qed.
     
     Axiom matrix_eq_commutes :
       forall (m n: nat) ME M1 M2 (m1: @Mt ME M1 m n) (m2: @Mt ME M2 m n),
@@ -298,16 +320,50 @@ Section KalmanFilter.
         [repeat rewrite refine_substitute;
          higher_order_reflexivity | ]; simpl.
 
+      Ltac magic A :=
+        let t := type of A in
+        let g := fresh "g" in
+        let f := fresh "f" in
+        let xxx := fresh "xxx" in
+        evar (g : Type);
+        evar (f: t -> ?g);
+        match goal with
+        | [|- refine (ret ?B) _] => assert (?f A = B) by (subst f; remember A as xxx; exists); eapply refine_substitute2 with (f := f) (a := A)
+        | [|- refineEquiv (ret ?B) _] => assert (?f A = B) by (subst f; remember A as xxx; exists); eapply refine_substitute2 with (f := f) (a := A)
+        end.
+
+      Ltac is_variable A :=
+        match goal with
+        | [ B :_ |- _] =>
+          tryif (assert (A = B) by auto) then idtac
+          else fail 0
+        end.
+      
+      Ltac move_ret_to_blet_helper type :=
+        match goal with
+        | [|- context[?A]] =>
+          let t := type of A in
+          tryif (assert (t = type) by auto) then
+            tryif (is_variable A) then fail 0
+            else magic A
+          else fail 0
+        end.
+
+      Ltac move_ret_to_blet type :=
+        etransitivity;
+        [etransitivity; [repeat move_ret_to_blet_helper type| simpl]; try (erewrite refine_smaller; [ | intros; move_ret_to_blet type; higher_order_reflexivity]);
+         higher_order_reflexivity | ]; simpl.
+      
      Lemma templem:
         forall B C D E,
-            refineEquiv (r_n' <- ret {|Sx := B; SP := C |}; ret (r_n', {| x := D; P := E|}))
-                        (bb <<- B; cc <<- C; dd <<- D; ee <<- E; r_n' <- ret {|Sx := bb; SP := cc |}; ret (r_n', {| x := dd; P := ee|})).
+            refineEquiv (ret ({|Sx := B; SP := C |}, {| x := D; P := E|}))
+                        (bb <<- B; cc <<- C; dd <<- D; ee <<- E; ret ({|Sx := bb; SP := cc |}, {| x := dd; P := ee|})).
      Admitted.
 
      Lemma templem2:
         forall B C,
-            refineEquiv (r_n' <- ret {|Sx := B; SP := C |}; ret (r_n', ()))
-                        (bb <<- B; cc <<- C; r_n' <- ret {|Sx := bb; SP := cc |}; ret (r_n', ())).
+            refineEquiv (ret ({|Sx := B; SP := C |}, ()))
+                        (bb <<- B; cc <<- C; ret ({|Sx := bb; SP := cc |}, ())).
       Admitted.
     {
       guess_pick_val.
@@ -320,15 +376,16 @@ Section KalmanFilter.
       etransitivity.
       repeat refine blocked ret.
       guess_pick_val.
+      simplify with monad laws.
       higher_order_reflexivity.
       simpl.
 
       converts_to_blocked_ret.
       substitute_all.
-      
-      etransitivity.
-      rewrite templem.
-      higher_order_reflexivity.
+
+      move_ret_to_blet (Vt n).
+      move_ret_to_blet (SSM n). 
+      move_ret_to_blet (SDM n).
       
       Optimize1. 
       Unfolding.
@@ -345,16 +402,16 @@ Section KalmanFilter.
       etransitivity.
       repeat refine blocked ret.
       guess_pick_val.
-      (*simplify with monad laws.*) 
+      simplify with monad laws.
       higher_order_reflexivity.
       simpl.
 
       converts_to_blocked_ret.
       substitute_all.
       
-      etransitivity.
-      rewrite templem2.
-      higher_order_reflexivity.
+      move_ret_to_blet (Vt n).
+      move_ret_to_blet (SSM n). 
+      move_ret_to_blet (SDM n).
       
       Optimize1. 
       Unfolding.

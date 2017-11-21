@@ -395,6 +395,15 @@ Proof.
      eauto. 
 Qed.
 
+Lemma refine_substitute2:
+        forall A B, forall (a: A) (f: A -> B),
+            refineEquiv (ret (f a))  (x <<- a; ret (f x)) .
+Proof.
+  intros.
+  rewrite refine_substitute.
+  higher_order_reflexivity.
+Qed.
+
 Lemma blet_equal_blocked_ret {A B}:
       forall (a: A) (f: A -> Comp B),
              refineEquiv (x <<- a; f x) (blet x := a in f x).

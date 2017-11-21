@@ -254,6 +254,7 @@ Class Matrix {ME: MatrixElem} :=
 
 Infix "@*" := Mtimes (at level 40, left associativity) : matrix_scope.
 Infix "@+" := (Melementwise_op MEplus) (at level 50, left associativity) : matrix_scope.
+Infix "@-" := (Melementwise_op MEminus) (at level 50, left associativity) : matrix_scope.
 
 Section MatrixOps.
   Context {ME : MatrixElem} {M1 M2: @Matrix ME}.

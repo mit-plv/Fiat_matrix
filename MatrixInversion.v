@@ -11,63 +11,14 @@ Require Import Omega.
 Require Import Matrix.
 Require Import MyHelpers.
 
-Section MatrixInversionX.
-
-  Variable E: MatrixElem.
-  Variable M: @Matrix E.
-  Add Field MatrixInversionEtField' : MEfield.
-
-  
-  Lemma eq_Mt_refl {m n}: reflexive (Mt m n) (Meq).
-  Proof.
-    unfold reflexive. unfold "@=". 
-    intros.
-    reflexivity.
-  Qed.
-  
-  Lemma eq_Mt_sym {m n}: symmetric (Mt m n) (Meq).
-  Proof.
-    unfold symmetric. unfold "@=".
-    intros.
-    rewrite H; auto.
-  Qed.
-  
-  Lemma eq_Mt_trans {m n}:  transitive (Mt m n) (Meq).
-  Proof.
-    unfold transitive. unfold "@=".
-    intros.
-    rewrite H; auto.
-  Qed.
-
-End MatrixInversionX.
-
 Section MatrixInversion.
   Variable E: MatrixElem.
   Variable M: @Matrix E.
-  Add Field MatrixInversionEtField'' : MEfield.
+  Add Field MatrixInversionEtField' : MEfield.
   Variable n: nat.
 
-  Print eq_Mt_refl. 
-  Add Parametric Relation m n: (Mt m n) (Meq)
-      reflexivity proved by (eq_Mt_refl (m:=m) (n:=n))
-      symmetry proved by (eq_Mt_sym (m:=m) (n:=n))
-      transitivity proved by (eq_Mt_trans (m:=m) (n:=n))                        
-        as Meq_id.
+  Set Implicit Arguments.
 
-  Add Parametric Morphism m n p: (Mtimes) with
-        signature (Meq (m:=m)(n:=n)) ==> (Meq (m:=n)(n:=p)) ==> (Meq (m:=m)(n:=p)) as Mtimes_mor. 
-  Proof.
-    intros.
-    unfold "@=".
-    intros.
-    rewrite Mtimes_correct; auto.
-    rewrite Mtimes_correct; auto.
-    apply sum_upto_morphism; red; intros.
-    rewrite H; try assumption.
-    rewrite H0; try assumption.
-    reflexivity.
-  Qed.
-  
   Lemma non_trivial_ring:
     e0 <> e1.
   Proof.
@@ -91,7 +42,48 @@ Section MatrixInversion.
     contradiction.
   Qed.
 
-  
+  Lemma eq_Mt_refl: forall m n, reflexive (Mt m n) (Meq).
+  Proof.
+    unfold reflexive. unfold "@=". 
+    intros.
+    reflexivity.
+  Qed.
+
+  Lemma eq_Mt_sym: forall m n, symmetric (Mt m n) (Meq).
+  Proof.
+    unfold symmetric. unfold "@=".
+    intros.
+    rewrite H; auto.
+  Qed.
+
+  Lemma eq_Mt_trans: forall m n, transitive (Mt m n) (Meq).
+  Proof.
+    unfold transitive. unfold "@=".
+    intros.
+    rewrite H; auto.
+  Qed.
+
+  Add Parametric Relation m n: (Mt m n) (Meq)
+      reflexivity proved by (eq_Mt_refl (m:=m) (n:=n))
+      symmetry proved by (eq_Mt_sym (m:=m) (n:=n))
+      transitivity proved by (eq_Mt_trans (m:=m) (n:=n))                        
+        as Meq_id.
+
+  Add Parametric Morphism m n p: (Mtimes) with
+        signature (Meq (m:=m)(n:=n)) ==> (Meq (m:=n)(n:=p)) ==> (Meq (m:=m)(n:=p)) as Mtimes_mor. 
+  Proof.
+    intros.
+    unfold "@=".
+    intros.
+    rewrite Mtimes_correct; auto.
+    rewrite Mtimes_correct; auto.
+    apply sum_upto_morphism; red; intros.
+    rewrite H; try assumption.
+    rewrite H0; try assumption.
+    reflexivity.
+  Qed.
+
+
   Definition I := I n E M.
   Definition e := e n E M. 
   Definition row_mul := row_mul n E M.

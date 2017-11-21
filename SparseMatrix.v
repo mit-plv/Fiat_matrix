@@ -5,60 +5,7 @@ Require Import Coq.omega.Omega.
 Require Import Matrix. 
 Require Import Coq.setoid_ring.Ring.
 Require Import Coq.setoid_ring.Ring_theory.
-
-
-
-Lemma nth_default_0: forall A: Type, forall a b : A, forall l: list A, 
-  nth_default b (a::l) 0 = a.
-Proof. 
-  intros a l. 
-  reflexivity. 
-Qed. 
-
-Lemma nth_default_nil: forall A: Type, forall b : A, forall i, 
-  nth_default b nil i = b.
-Proof. 
-  intros A0. intros b. intros i. 
-  unfold nth_default. 
-  unfold nth_error. 
-  destruct i. 
-  - reflexivity. 
-  - reflexivity. 
-Qed. 
-
-Lemma nth_default_S: forall A: Type, forall a b : A, forall l: list A, forall i, 
-  nth_default b (a :: l) (S i) = nth_default b l i.
-Proof. 
-  intros A0 a b l i. 
-  unfold nth_default. 
-  unfold nth_error. 
-  reflexivity. 
-Qed. 
-
-
-Lemma nth_default_map : forall A B X d d0 i, forall f: A -> B, 
-  f (d) = d0 -> nth_default d0 (map f X) i =  f (nth_default d X i). 
-Proof. 
-  intros A B X.  
-  induction X as [| v X IHX]. 
-  - intros d d0 i0 f H. simpl. rewrite nth_default_nil. rewrite nth_default_nil. rewrite H. reflexivity. 
-  - intros d d0 i0 f H. destruct i0. 
-    + rewrite nth_default_0. simpl. rewrite nth_default_0. reflexivity. 
-    + rewrite nth_default_S. simpl. rewrite nth_default_S. apply IHX. 
-      apply H.
-Qed.  
-
-Lemma nth_default_map_in_range : forall A B X d d0 i, forall f: A -> B, 
-  i < length X -> nth_default d0 (map f X) i =  f (nth_default d X i). 
-Proof. 
-  intros A B X.  
-  induction X as [| v X IHX]. 
-  - intros d d0 i0 f H. inversion H. 
-  - intros d d0 i0 f H. destruct i0. 
-    + rewrite nth_default_0. simpl. rewrite nth_default_0. reflexivity. 
-    + rewrite nth_default_S. simpl. rewrite nth_default_S. apply IHX. 
-      simpl in H. omega. 
-Qed.
+Require Import ListHelpers.
 
 (** *Row major matrix, but for each row, we only store some non-zero elements. 
      in increased index order; efficient storage but not efficient multiplication *)
@@ -352,7 +299,8 @@ Definition SparseMatrix {ME: MatrixElem} : Matrix.
  unshelve eapply {| Mt m n := list (list (nat * MEt));
                     Mget m n mx i j := get m n mx i j; 
                     Mtimes m n p m1 m2 := Matrix_mul m n p m m1 m2;
-                    Mfill m n f := Generate ME m n f|}.
+                    Mfill m n f := Generate ME m n f;
+                    Melementwise_op m n op m1 m2:= Generate ME m n (fun i j => op (get m n m1 i j) (get m n m2 i j))|}.
   simpl. intros. 
   unfold get at 1. 
   assert (H1: i <? m = true).
@@ -368,6 +316,11 @@ Definition SparseMatrix {ME: MatrixElem} : Matrix.
 
   simpl.
   intros. 
+  rewrite generate_get_row_correct; try assumption.
+  rewrite generate_row_get_element_correct with (m := m); try omega.
+  reflexivity.
+
+  simpl. intros.
   rewrite generate_get_row_correct; try assumption.
   rewrite generate_row_get_element_correct with (m := m); try omega.
   reflexivity. 

@@ -547,5 +547,107 @@ Section SpecialMatrices.
   Qed.
 End SpecialMatrices.
 
+Section Morphisms.
+   Variable ME : MatrixElem.
+  Add Field Afield' : MEfield.
+  Notation DM := Mt.
+  Variable M: @Matrix ME.
+  (* Existing Instance DenseMatrix.*)
   
+  (*Notation DM := (Mt (ME := ME) (Matrix := DenseMatrix)).*)
   
+  Lemma eq_Mt_refl {m n}: reflexive (DM m n) (Meq).
+  Proof.
+    unfold reflexive. unfold "@=". 
+    intros.
+    reflexivity.
+  Qed.
+  
+  Lemma eq_Mt_sym {m n}: symmetric (DM m n) (Meq).
+  Proof.
+    unfold symmetric. unfold "@=".
+    intros.
+    rewrite H; auto.
+  Qed.
+  
+  Lemma eq_Mt_trans {m n}:  transitive (DM m n) (Meq).
+  Proof.
+    unfold transitive. unfold "@=".
+    intros.
+    rewrite H; auto.
+  Qed.
+  
+  Global Add Parametric Relation m n: (DM m n) (Meq)
+      reflexivity proved by (eq_Mt_refl (m:=m) (n:=n))
+      symmetry proved by (eq_Mt_sym (m:=m) (n:=n))
+      transitivity proved by (eq_Mt_trans (m:=m) (n:=n))                        
+        as Meq_id.
+
+  Global Add Parametric Morphism m n p: (Mtimes) with
+        signature (Meq (m:=m)(n:=n)) ==> (Meq (m:=n)(n:=p)) ==> (Meq (m:=m)(n:=p)) as Mtimes_mor. 
+  Proof.
+    intros.
+    unfold "@=".
+    intros.
+    rewrite Mtimes_correct; auto.
+    rewrite Mtimes_correct; auto.
+    apply sum_upto_morphism; red; intros.
+    rewrite H; try assumption.
+    rewrite H0; try assumption.
+    reflexivity.
+  Qed.
+
+   Global Add Parametric Morphism m n op: (Melementwise_op op) with
+        signature (Meq (m:=m)(n:=n)) ==> (Meq (m:=m)(n:=n)) ==> (Meq (m:=m)(n:=n)) as Melementwise_mor. 
+  Proof.
+    intros.
+    unfold "@=".
+    intros.
+    rewrite Melementwise_op_correct; auto.
+    rewrite Melementwise_op_correct; auto.
+    rewrite H; try assumption.
+    rewrite H0; try assumption.
+    reflexivity.
+  Qed.
+  
+  Definition Restricted_Eq {m} {n} (f: nat -> nat -> MEt) (g: nat -> nat -> MEt) :=
+    forall i j, i < m -> j < n -> f i j = g i j.
+  
+  Lemma eq_Res_refl {m n}: reflexive (nat -> nat -> MEt) (@Restricted_Eq m n).
+  Proof.
+    unfold reflexive. unfold Restricted_Eq. 
+    intros.
+    reflexivity.
+  Qed.
+
+  Lemma eq_Res_sym {m n}: symmetric (nat -> nat -> MEt) (@Restricted_Eq m n).
+  Proof.
+    unfold symmetric. unfold Restricted_Eq. 
+    intros.
+    rewrite H; auto.
+  Qed.
+
+  Lemma eq_Res_trans {m n}:  transitive (nat -> nat -> MEt) (@Restricted_Eq m n).
+  Proof.
+    unfold transitive. unfold Restricted_Eq. 
+    intros.
+    rewrite H; auto.
+  Qed.
+
+  Global Add Parametric Relation m n: (nat -> nat -> MEt) (@Restricted_Eq m n)
+      reflexivity proved by (eq_Res_refl (m:=m) (n:=n))
+      symmetry proved by (eq_Res_sym (m:=m) (n:=n))
+      transitivity proved by (eq_Res_trans (m:=m) (n:=n))                        
+        as Res_id.
+  Print Mfill. 
+  Global Add Parametric Morphism m n: (Mfill) with
+        signature (@Restricted_Eq m n) ==> (Meq (m:=m)(n:=n)) as Mfill_mor.
+  Proof.
+    intros.
+    unfold "@=".
+    intros.
+    rewrite Mfill_correct; auto.
+    rewrite Mfill_correct; auto.
+  Qed.
+  
+End Morphisms.  

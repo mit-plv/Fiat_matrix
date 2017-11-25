@@ -9,7 +9,9 @@ Require Import
         Matrix
         SparseMatrix
         DenseMatrix
-        FiatHelpers.
+        FiatHelpers
+        MyHelpers.
+
 
 Variable E: MatrixElem.
 Notation SDM n := (Mt (ME := E) (Matrix := DenseMatrix) n n).
@@ -333,12 +335,7 @@ Section KalmanFilter.
         | [|- refine (ret ?B) _] => assert (?f A = B) by (subst f; remember A as xxx; exists); eapply refine_substitute2 with (f := f) (a := A)
         | [|- refineEquiv (ret ?B) _] => assert (?f A = B) by (subst f; remember A as xxx; exists); eapply refine_substitute2 with (f := f) (a := A)
         end.
-
-      Ltac is_variable A :=
-        match goal with
-        | [ B :_ |- _] => assert (A = B) by auto
-        end.
-
+      
       Ltac match_formula X larger_layer:=
         lazymatch X with
         | ?A ?B =>
@@ -363,15 +360,15 @@ Section KalmanFilter.
         [etransitivity; [repeat move_ret_to_blet_helper| simpl]; try (erewrite refine_smaller; [ | intros; move_ret_to_blet ; higher_order_reflexivity]);
          higher_order_reflexivity | ]; simpl.
 
-      Ltac Optimize_single_method :=
+      Ltac Optimize_single_method r_o r_n:=
         clearit r_o r_n;
       
-        etransitivity;
+        etransitivity; [
         repeat refine blocked ret;
         guess_pick_val;
         try simplify with monad laws;
         higher_order_reflexivity;
-        simpl;
+        simpl | ];
 
         converts_to_blocked_ret;
         substitute_all;
@@ -388,55 +385,14 @@ Section KalmanFilter.
         Optimize_single_method r_o r_n.
       }
 
-    {
+      {
+        Optimize_single_method r_o r_n.
+      }
       
-      clearit r_o r_n.
-      
-      etransitivity.
-      repeat refine blocked ret.
-      guess_pick_val.
-      simplify with monad laws.
-      higher_order_reflexivity.
-      simpl.
 
-      converts_to_blocked_ret.
-      substitute_all.
-
-
-      move_ret_to_blet. 
-      
-      
-      Optimize1. 
-      Unfolding.
-      RemoveUseless.
-      removeDup. 
-
-      end_template. 
-       
-    }
-
-    { (* Update *) 
-      clearit r_o r_n.
-      
-      etransitivity.
-      repeat refine blocked ret.
-      guess_pick_val.
-      simplify with monad laws.
-      higher_order_reflexivity.
-      simpl.
-
-      converts_to_blocked_ret.
-      substitute_all.
-
-      move_ret_to_blet.
-      
-      Optimize1. 
-      Unfolding.
-      RemoveUseless.
-      removeDup. 
-
-      end_template. 
-    }
+      { (* Update *) 
+        Optimize_single_method r_o r_n.
+      }
 
     cbv beta.
     expose_rets_hidden_under_blets.

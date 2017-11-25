@@ -10,3 +10,10 @@ Ltac elim_bool:=
 | [H: ?x <=? ?y = true |- _] => apply Nat.leb_le in H
 | [H: ?x <=? ?y = false |- _] => apply Nat.leb_gt in H
 end.
+
+Ltac is_variable A :=
+  match goal with
+  | [ B :_ |- _] =>
+    let eq := fresh "eq" in
+    assert (eq: A = B) by auto; clear eq
+  end.

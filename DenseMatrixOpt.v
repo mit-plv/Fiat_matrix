@@ -10,12 +10,12 @@ Require Import
         DenseMatrix.
 
 Section A.
-  Variable ME : MatrixElem.
-  Add Field Afield : MEfield.
+   Variable ME : MatrixElem.
+  Add Field Afield' : MEfield.
+  Notation DM := (Mt (ME := ME) (Matrix := DenseMatrix)).
+  Existing Instance DenseMatrix.
   
-  Variable M: Matrix.
   (*Notation DM := (Mt (ME := ME) (Matrix := DenseMatrix)).*)
-  Notation DM := Mt. 
   
   Lemma eq_Mt_refl {m n}: reflexive (DM m n) (Meq).
   Proof.
@@ -38,13 +38,13 @@ Section A.
     rewrite H; auto.
   Qed.
   
-  Add Parametric Relation m n: (DM m n) (Meq)
+  Global Add Parametric Relation m n: (DM m n) (Meq)
       reflexivity proved by (eq_Mt_refl (m:=m) (n:=n))
       symmetry proved by (eq_Mt_sym (m:=m) (n:=n))
       transitivity proved by (eq_Mt_trans (m:=m) (n:=n))                        
         as Meq_id.
 
-  Add Parametric Morphism m n p: (Mtimes) with
+  Global Add Parametric Morphism m n p: (Mtimes) with
         signature (Meq (m:=m)(n:=n)) ==> (Meq (m:=n)(n:=p)) ==> (Meq (m:=m)(n:=p)) as Mtimes_mor. 
   Proof.
     intros.
@@ -58,7 +58,7 @@ Section A.
     reflexivity.
   Qed.
 
-   Add Parametric Morphism m n op: (Melementwise_op op) with
+   Global Add Parametric Morphism m n op: (Melementwise_op op) with
         signature (Meq (m:=m)(n:=n)) ==> (Meq (m:=m)(n:=n)) ==> (Meq (m:=m)(n:=n)) as Melementwise_mor. 
   Proof.
     intros.
@@ -95,13 +95,13 @@ Section A.
     rewrite H; auto.
   Qed.
 
-  Add Parametric Relation m n: (nat -> nat -> MEt) (@Restricted_Eq m n)
+  Global Add Parametric Relation m n: (nat -> nat -> MEt) (@Restricted_Eq m n)
       reflexivity proved by (eq_Res_refl (m:=m) (n:=n))
       symmetry proved by (eq_Res_sym (m:=m) (n:=n))
       transitivity proved by (eq_Res_trans (m:=m) (n:=n))                        
         as Res_id.
   Print Mfill. 
-  Add Parametric Morphism m n: (Mfill) with
+  Global Add Parametric Morphism m n: (Mfill) with
         signature (@Restricted_Eq m n) ==> (Meq (m:=m)(n:=n)) as Mfill_mor.
   Proof.
     intros.
@@ -110,10 +110,16 @@ Section A.
     rewrite Mfill_correct; auto.
     rewrite Mfill_correct; auto.
   Qed.
-
-  Print DenseMatrix. 
+  
+End A.
+Section Test.
+   Variable ME : MatrixElem.
+  Add Field Afield : MEfield.
+  Notation DM := (Mt (ME := ME) (Matrix := DenseMatrix)).
+  Existing Instance DenseMatrix.
+  
   Lemma get_then_fill {m n}: forall M: DM m n,
-      M @= Mfill (fun i j => M@[i, j]).
+      M @= (Mfill (fun i j => M@[i, j]) : DM m n).
   Proof.
     intros.
     unfold "@=".
@@ -130,14 +136,13 @@ Section A.
   Qed.
   
   Lemma split_terms {m n}: forall A B: DM m n, forall op f,
-        @Restricted_Eq m n (fun i j => f((Melementwise_op op A B)@[i, j])) ((fun i j => f(op (A@[i, j]) (B@[i, j])))).
+        @Restricted_Eq _ m n (fun i j => f((Melementwise_op op A B)@[i, j])) ((fun i j => f(op (A@[i, j]) (B@[i, j])))).
   Proof.
     intros.
     unfold Restricted_Eq.
     intros.
     rewrite op_then_get; auto.
   Qed.
-  Print Mfill.
   
   Lemma Mfill_and_matrix {m n}: forall A: DM m n, forall f op, 
       Melementwise_op op (Mfill f) A @= (Mfill (fun i j => op (f i j) (A@[i, j]))).
@@ -162,7 +167,7 @@ Section A.
   Qed.
 
   Lemma Mfill_and_Mfill: forall m n: nat, forall f g op, 
-      Melementwise_op op (@Mfill ME M m n g) (Mfill f) @= (Mfill (fun i j => op (g i j) (f i j))).
+      Melementwise_op op (@Mfill ME _ m n g) (Mfill f) @= (Mfill (fun i j => op (g i j) (f i j))).
   Proof.
     intros.
     unfold "@=". 
@@ -233,8 +238,15 @@ Section A.
      (A @+ B @+ C) @+ (D @+ E @+ F) @+ (A @+ A @+ B) @= A.
   Proof.
     intros.
+    
+    Print M_and_M_and_M .
+    Locate "@+".
+    repeat MOPT. 
+    (* pose proof (M_and_M_and_M A B C (MEplus) (MEplus)). *)
+    setoid_replace (A @+ B @+ C) with (@Mfill _ _ n n (fun i j : nat => A@[i, j] +e B@[i, j] +e C@[i, j])) using relation (@Meq _ _ _ n n). 
+    setoid_rewrite (M_and_M_and_M A B C (MEplus) (MEplus)).
     MOPT.
     MOPT.
     MOPT.
-    MOPT. 
+    MOPT.*
     Time repeat MOPT. 

@@ -30,6 +30,8 @@ Definition Id {n} := I n E DenseMatrix.
 Arguments Mtimes : simpl never.
 (* Arguments DenseMatrix : simpl never. *)
 
+Opaque DenseMatrix. 
+  
 Theorem refine_change_type A B:
   forall (a : Comp A) (f: A -> Comp B) (cast: A -> B) (cast_back: B -> A),
     (forall x, refine (f x) (f (cast_back (cast x)))) -> 
@@ -334,43 +336,60 @@ Section KalmanFilter.
 
       Ltac is_variable A :=
         match goal with
-        | [ B :_ |- _] =>
-          tryif (assert (A = B) by auto) then idtac
-          else fail 0
+        | [ B :_ |- _] => assert (A = B) by auto
+        end.
+
+      Ltac match_formula X larger_layer:=
+        lazymatch X with
+        | ?A ?B =>
+          tryif (is_variable B) then
+            match_formula A (S O)
+          else magic B
+        | _ =>
+          tryif (assert (larger_layer = S O) by auto) then fail 0
+          else tryif (assert (X = ()) by auto) then fail 0
+          else tryif (is_variable X) then fail 0
+          else  magic X
         end.
       
-      Ltac move_ret_to_blet_helper type :=
+      Ltac move_ret_to_blet_helper :=
         match goal with
-        | [|- context[?A]] =>
-          let t := type of A in
-          tryif (assert (t = type) by auto) then
-            tryif (is_variable A) then fail 0
-            else magic A
-          else fail 0
+        | [ |- context[ret (?X, ?Y)]] =>
+          first [ match_formula X 0 | match_formula Y 0]
         end.
 
-      Ltac move_ret_to_blet type :=
+      Ltac move_ret_to_blet :=
         etransitivity;
-        [etransitivity; [repeat move_ret_to_blet_helper type| simpl]; try (erewrite refine_smaller; [ | intros; move_ret_to_blet type; higher_order_reflexivity]);
+        [etransitivity; [repeat move_ret_to_blet_helper| simpl]; try (erewrite refine_smaller; [ | intros; move_ret_to_blet ; higher_order_reflexivity]);
          higher_order_reflexivity | ]; simpl.
+
+      Ltac Optimize_single_method :=
+        clearit r_o r_n;
       
-     Lemma templem:
-        forall B C D E,
-            refineEquiv (ret ({|Sx := B; SP := C |}, {| x := D; P := E|}))
-                        (bb <<- B; cc <<- C; dd <<- D; ee <<- E; ret ({|Sx := bb; SP := cc |}, {| x := dd; P := ee|})).
-     Admitted.
+        etransitivity;
+        repeat refine blocked ret;
+        guess_pick_val;
+        try simplify with monad laws;
+        higher_order_reflexivity;
+        simpl;
 
-     Lemma templem2:
-        forall B C,
-            refineEquiv (ret ({|Sx := B; SP := C |}, ()))
-                        (bb <<- B; cc <<- C; ret ({|Sx := bb; SP := cc |}, ())).
-      Admitted.
-    {
-      guess_pick_val.
-      end_template. 
-    }
+        converts_to_blocked_ret;
+        substitute_all;
+
+        move_ret_to_blet;
+        
+        Optimize1;
+        Unfolding;
+        RemoveUseless;
+        removeDup;
+
+        end_template. 
+      {
+        Optimize_single_method r_o r_n.
+      }
 
     {
+      
       clearit r_o r_n.
       
       etransitivity.
@@ -383,9 +402,9 @@ Section KalmanFilter.
       converts_to_blocked_ret.
       substitute_all.
 
-      move_ret_to_blet (Vt n).
-      move_ret_to_blet (SSM n). 
-      move_ret_to_blet (SDM n).
+
+      move_ret_to_blet. 
+      
       
       Optimize1. 
       Unfolding.
@@ -408,10 +427,8 @@ Section KalmanFilter.
 
       converts_to_blocked_ret.
       substitute_all.
-      
-      move_ret_to_blet (Vt n).
-      move_ret_to_blet (SSM n). 
-      move_ret_to_blet (SDM n).
+
+      move_ret_to_blet.
       
       Optimize1. 
       Unfolding.

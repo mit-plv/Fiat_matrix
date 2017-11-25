@@ -140,12 +140,7 @@ Section A.
     
     Print M_and_M_and_M .
     Locate "@+".
-    repeat MOPT. 
-    (* pose proof (M_and_M_and_M A B C (MEplus) (MEplus)). *)
-    setoid_replace (A @+ B @+ C) with (@Mfill _ _ n n (fun i j : nat => A@[i, j] +e B@[i, j] +e C@[i, j])) using relation (@Meq _ _ _ n n). 
-    setoid_rewrite (M_and_M_and_M A B C (MEplus) (MEplus)).
-    MOPT.
-    MOPT.
-    MOPT.
-    MOPT.*
-    Time repeat MOPT. 
+    repeat MOPT.
+  Admitted.
+
+End A.

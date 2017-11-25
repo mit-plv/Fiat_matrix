@@ -16,51 +16,25 @@ Require Import
 Variable E: MatrixElem.
 Notation SDM n := (Mt (ME := E) (Matrix := DenseMatrix) n n).
 Notation SSM n := (Mt (ME := E) (Matrix := SparseMatrix) n n).
+Notation Vt n := (Mt (ME := E) (Matrix := DenseMatrix) n 1).
+Opaque DenseMatrix.
+Opaque SparseMatrix. 
 
-Axiom Vt: forall n: nat, Type.
+
 Definition transpose {n} (A : SDM n) :=
   @Mfill E DenseMatrix n n (fun i j => Mget A j i).
-Axiom MVtimes : forall {n}, SDM n -> Vt n -> Vt n.
+Definition MVtimes {n} (M: SDM n) (v: Vt n) := M @* v.
 Axiom inversion : forall {n}, SDM n -> SDM n.
 Infix "&*" := MVtimes (at level 40, left associativity) : matrix_scope.
-Axiom Vplus : forall {n}, Vt n -> Vt n -> Vt n.
+Definition Vplus {n} (v: Vt n) (u: Vt n):= v @+ u.
 Infix "&+" := Vplus (at level 50, left associativity) : matrix_scope.
-Axiom Vminus : forall {n}, Vt n -> Vt n -> Vt n.
+Definition Vminus {n} (v: Vt n) (u: Vt n):= v @- u.
 Infix "&-" := Vminus (at level 50, left associativity) : matrix_scope.
 Definition Id {n} := I n E DenseMatrix.
 
 Arguments Mtimes : simpl never.
 (* Arguments DenseMatrix : simpl never. *)
 
-Opaque DenseMatrix. 
-  
-Theorem refine_change_type A B:
-  forall (a : Comp A) (f: A -> Comp B) (cast: A -> B) (cast_back: B -> A),
-    (forall x, refine (f x) (f (cast_back (cast x)))) -> 
-    refine (x <- a; f x)
-           (x <- (y <- a; ret (cast y));
-              f (cast_back x)).
-Proof.
-  intros.
-  rewrite <- refine_bind_bind'.
-  unfold refine.
-  Transparent computes_to. 
-  unfold computes_to.
-  Transparent Bind.
-  unfold Bind.
-  intros. intros. 
-  inversion H0; subst.
-  exists x.
-  split.
-  - apply H1.
-  - inversion H1; subst.
-    unfold Ensembles.In in H3.
-    inversion H3; subst; clear H3.
-    inversion H4; subst; clear H4. 
-    rewrite H.
-    unfold Ensembles.In. inversion H3; subst.
-    assumption.
-Qed.
 
 Section Test. 
 Definition P1 := x <- { x | x > 0}; y <- ret (x*2); ret (x + y).
@@ -142,8 +116,6 @@ Section KalmanFilter.
            | _ => simplify with monad laws
            end.
 
-  Axiom magic : forall {A}, unit -> A.
-
   Record SparseKalmanState :=
     { Sx : Vt n;
       SP : SSM n }.
@@ -191,25 +163,57 @@ Section KalmanFilter.
       reflexivity.
     Qed.
     
-    Axiom matrix_eq_commutes :
+    Lemma matrix_eq_commutes :
       forall (m n: nat) ME M1 M2 (m1: @Mt ME M1 m n) (m2: @Mt ME M2 m n),
         m1 @= m2 -> m2 @= m1.
+    Proof.
+      intros.
+      unfold "@=" in *.
+      intros.
+      rewrite H; auto.
+    Qed.
+    
     Axiom solveR: forall {n}, SDM n -> SDM n -> SDM n.
     Axiom solveR_correct: forall n: nat, forall M1 M2:SDM n,
       M1 @* (inversion M2) = solveR M2 M1.
-    Axiom multi_assoc: forall n: nat, forall M1 M2 M3 : SDM n,
-          (M1 @* M2) @* M3 = M1 @* (M2 @* M3).
+    Lemma multi_assoc: forall n: nat, forall M1 M2 M3 : SDM n,
+          (M1 @* M2) @* M3 @= M1 @* (M2 @* M3).
+    Proof.
+      intros.
+      rewrite mult_assoc.
+      reflexivity.
+    Qed.
+    
     Axiom Cholesky_DC: forall {n}, SDM n -> SDM n.
     Axiom solveR_lower: forall {n}, SDM n -> SDM n -> SDM n.
     Axiom solveR_upper: forall {n}, SDM n -> SDM n -> SDM n.
-    Axiom ABv_assoc: forall n:nat, forall A B: SDM n, forall v : Vt n,
-      MVtimes (A @* B) v =  MVtimes A (MVtimes B v). 
+    Lemma ABv_assoc: forall n:nat, forall A B: SDM n, forall v : Vt n,
+            MVtimes (A @* B) v @=  MVtimes A (MVtimes B v).
+    Proof.
+      intros.
+      unfold "&*".
+      rewrite mult_assoc.
+      reflexivity.
+    Qed.
+    
     Axiom Cholesky_DC_correct: forall n:nat, forall M1 M2 : SDM n, 
-        solveR M1 M2 = solveR_upper (transpose (Cholesky_DC M1)) (solveR_lower (Cholesky_DC M1) M2). 
+          solveR M1 M2 = solveR_upper (transpose (Cholesky_DC M1)) (solveR_lower (Cholesky_DC M1) M2).
+
+    (*!!! Here, the sense of densify is pretty strong*)
     Axiom Densify_correct: forall n:nat, forall M : SDM n, forall S : SSM n,
             M @= S -> M = densify S.
+    
     Axiom Densify_correct_rev: forall n:nat, forall M : SDM n, forall S : SSM n,
-            M = densify S -> M @= S.
+            M @= densify S -> M @= S.
+    Proof.
+      intros.
+      unfold densify in H.
+      unfold "@=" in *.
+      intros.
+      rewrite H; auto. 
+      rewrite Mfill_correct; auto.
+    Qed.
+    
     Axiom dense_sparse_mul: forall {n}, SDM n -> SSM n -> SDM n.
     Axiom dense_sparse_mul_correct: forall {n}, forall A: SDM n, forall B: SSM n, 
             dense_sparse_mul A B = A @* densify B. 
@@ -343,8 +347,8 @@ Section KalmanFilter.
             match_formula A (S O)
           else magic B
         | _ =>
-          tryif (assert (larger_layer = S O) by auto) then fail 0
-          else tryif (assert (X = ()) by auto) then fail 0
+          tryif (unify larger_layer (S O)) then fail 0
+          else tryif (unify X ()) then fail 0
           else tryif (is_variable X) then fail 0
           else  magic X
         end.
@@ -386,10 +390,36 @@ Section KalmanFilter.
       }
 
       {
+        
+      
+        etransitivity.
+        repeat refine blocked ret.
+        guess_pick_val.
+        try simplify with monad laws.
+        higher_order_reflexivity.
+        simpl.
+
+        converts_to_blocked_ret.
+        substitute_all.
+
+        clearit r_o r_n.
+        
+        setoid_replace (P r_o) with (densify (SP r_n)). 
+        move_ret_to_blet.
+        
+        Optimize1.
+        Unfolding.
+        RemoveUseless.
+        removeDup.
+
+        repeat refine blocked ret.
+        refine blocked ret. 
+        refine blocked ret.
+        try (simplify with monad laws); finish honing.
+        end_template. 
         Optimize_single_method r_o r_n.
       }
       
-
       { (* Update *) 
         Optimize_single_method r_o r_n.
       }

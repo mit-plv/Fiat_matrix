@@ -5,8 +5,7 @@ Require Import Coq.omega.Omega.
 Require Import Matrix. 
 Require Import Coq.setoid_ring.Ring.
 Require Import Coq.setoid_ring.Ring_theory.
-Require Import ListHelpers. 
-
+Require Import MyHelpers. 
 
 Section A.
  Variable ME : MatrixElem.

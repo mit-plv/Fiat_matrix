@@ -5,8 +5,8 @@ Require Import Coq.omega.Omega.
 Require Import Matrix. 
 Require Import Coq.setoid_ring.Ring.
 Require Import Coq.setoid_ring.Ring_theory.
-Require Import ListHelpers.
-
+Require Import MyHelpers.
+ 
 (** *Row major matrix, but for each row, we only store some non-zero elements. 
      in increased index order; efficient storage but not efficient multiplication *)
 

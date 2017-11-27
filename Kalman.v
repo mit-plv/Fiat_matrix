@@ -89,7 +89,8 @@ Section KalmanFilter.
       Def Method4 "Predict" (r : rep) (F: SDM n) (B: SDM n) (Q: SDM n) (u: Vt n) : rep * KalmanState :=
         x' <<- F &* r.(x) &+ B &* u;
         p' <<- F @* r.(P) @* (transpose F) @+ Q;
-        ret (r, {| x := x'; P := p' |}),
+        X <- {X_ | X_.(x) @= x' /\ X_.(P) @= p'};
+        ret (r, X),
 
       Def Method3 "Update" (r : rep) (H: SDM n) (R: SDM n) (z: Vt n) : rep * unit :=
         y' <<- z &- H &* r.(x);
@@ -100,7 +101,7 @@ Section KalmanFilter.
         garbage <<- K' @* K' @+ S';
         ret ({| x := x'; P := p' |}, tt)
     }%methDefParsing.
-
+  
   Ltac reveal_body_evar :=
     match goal with
     | [ H := ?x : methodType _ _ _ |- _ ] => is_evar x; progress unfold H
@@ -203,7 +204,8 @@ Section KalmanFilter.
     Axiom Densify_correct: forall n:nat, forall M : SDM n, forall S : SSM n,
             M @= S -> M = densify S.
     
-    Axiom Densify_correct_rev: forall n:nat, forall M : SDM n, forall S : SSM n,
+    
+    Lemma Densify_correct_rev: forall n:nat, forall M : SDM n, forall S : SSM n,
             M @= densify S -> M @= S.
     Proof.
       intros.
@@ -391,33 +393,44 @@ Section KalmanFilter.
 
       {
         
-      
+
+        substitute_all.
+        assert (P r_o @= densify (SP r_n)).
+        {
+          Print Densify_correct.
+          rewrite <- Densify_correct with (M := P r_o).
+          - reflexivity.
+          - assumption.
+        }
+        assert( P r_o @= P r_o. 
+        rewrite H2. 
+        
+            
+        replace (P r_o) with (densify(SP r_n)). eauto with matrices. 
+        apply refine_bind.
+        - refine pick val {| x:= _; P:= _|}.
+          Focus 2.
+          simpl.
+          split.
+          + apply eq_Mt_refl.
+            Focus 2.
+          apply eq_Mt_refl.
+            
+          - apply eq_Mt_refl. 
+          
+        let x := fresh "x" in
+        let SP := fresh "SP" in
+        evar (x: Vt n); evar (SP: SSM n); refine pick val {| S := x; SP := SP |}. subst x; subst SP; try (split; simpl; eauto with matrices).
+        
         etransitivity.
+
         repeat refine blocked ret.
+        
         guess_pick_val.
         try simplify with monad laws.
         higher_order_reflexivity.
         simpl.
-
-        converts_to_blocked_ret.
-        substitute_all.
-
-        clearit r_o r_n.
         
-        setoid_replace (P r_o) with (densify (SP r_n)). 
-        move_ret_to_blet.
-        
-        Optimize1.
-        Unfolding.
-        RemoveUseless.
-        removeDup.
-
-        repeat refine blocked ret.
-        refine blocked ret. 
-        refine blocked ret.
-        try (simplify with monad laws); finish honing.
-        end_template. 
-        Optimize_single_method r_o r_n.
       }
       
       { (* Update *) 

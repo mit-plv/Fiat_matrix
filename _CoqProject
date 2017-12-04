@@ -4,10 +4,12 @@
 -install none
 
 Matrix.v
-ZElem.v
+MatrixInversion.v
 
 SparseMatrix.v
 DenseMatrix.v
+DenseMatrixOpt.v
 
 FiatHelpers.v
+MyHelpers.v
 Kalman.v

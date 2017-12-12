@@ -13,6 +13,7 @@ Require Import
         MyHelpers.
 
 
+
 Variable E: MatrixElem.
 Notation SDM n := (Mt (ME := E) (Matrix := DenseMatrix) n n).
 Notation SSM n := (Mt (ME := E) (Matrix := SparseMatrix) n n).
@@ -25,11 +26,35 @@ Definition transpose {n} (A : SDM n) :=
   @Mfill E DenseMatrix n n (fun i j => Mget A j i).
 Definition MVtimes {n} (M: SDM n) (v: Vt n) := M @* v.
 Axiom inversion : forall {n}, SDM n -> SDM n.
+
+Global Add Parametric Morphism n: (MVtimes ) with
+      signature (Meq (m:=n)(n:=n)) ==> (Meq (m:=n)(n:=1)) ==> (Meq (m:=n)(n:=1)) as MVtimes_mor.
+Admitted.
+
+Global Add Parametric Morphism n: (transpose ) with
+      signature (Meq (m:=n)(n:=n)) ==> (Meq (m:=n)(n:=n)) as transpose_mor.
+Admitted.
+
+
+Global Add Parametric Morphism n: (inversion ) with
+      signature (Meq (m:=n)(n:=n)) ==> (Meq (m:=n)(n:=n)) as inversion_mor.
+Admitted.
+
 Infix "&*" := MVtimes (at level 40, left associativity) : matrix_scope.
 Definition Vplus {n} (v: Vt n) (u: Vt n):= v @+ u.
 Infix "&+" := Vplus (at level 50, left associativity) : matrix_scope.
+
+Global Add Parametric Morphism n: (Vplus ) with
+      signature (Meq (m:=n)(n:=1)) ==> (Meq (m:=n)(n:=1)) ==> (Meq (m:=n)(n:=1)) as Vplus_mor.
+Admitted.
+
 Definition Vminus {n} (v: Vt n) (u: Vt n):= v @- u.
 Infix "&-" := Vminus (at level 50, left associativity) : matrix_scope.
+
+Global Add Parametric Morphism n: (Vminus ) with
+      signature (Meq (m:=n)(n:=1)) ==> (Meq (m:=n)(n:=1)) ==> (Meq (m:=n)(n:=1)) as Vminus_mor.
+Admitted.
+
 Definition Id {n} := I n E DenseMatrix.
 
 Arguments Mtimes : simpl never.
@@ -89,8 +114,9 @@ Section KalmanFilter.
       Def Method4 "Predict" (r : rep) (F: SDM n) (B: SDM n) (Q: SDM n) (u: Vt n) : rep * KalmanState :=
         x' <<- F &* r.(x) &+ B &* u;
         p' <<- F @* r.(P) @* (transpose F) @+ Q;
-        X <- {X_ | X_.(x) @= x' /\ X_.(P) @= p'};
-        ret (r, X),
+        xx <- {X | X @= x'};
+        pp <- {P | P @= p'};
+        ret (r, {|x := xx; P := pp|}),
 
       Def Method3 "Update" (r : rep) (H: SDM n) (R: SDM n) (z: Vt n) : rep * unit :=
         y' <<- z &- H &* r.(x);
@@ -122,7 +148,7 @@ Section KalmanFilter.
       SP : SSM n }.
 
   Definition use_a_sparse_P (or : KalmanState) (nr : SparseKalmanState) :=
-    or.(x) = nr.(Sx) /\ or.(P) @= nr.(SP).
+    or.(x) @= nr.(Sx) /\ or.(P) @= nr.(SP).
 
   Definition SharpenedKalman :
     FullySharpened KalmanSpec.
@@ -200,9 +226,8 @@ Section KalmanFilter.
     Axiom Cholesky_DC_correct: forall n:nat, forall M1 M2 : SDM n, 
           solveR M1 M2 = solveR_upper (transpose (Cholesky_DC M1)) (solveR_lower (Cholesky_DC M1) M2).
 
-    (*!!! Here, the sense of densify is pretty strong*)
     Axiom Densify_correct: forall n:nat, forall M : SDM n, forall S : SSM n,
-            M @= S -> M = densify S.
+            M @= S -> M @= densify S.
     
     
     Lemma Densify_correct_rev: forall n:nat, forall M : SDM n, forall S : SSM n,
@@ -225,13 +250,15 @@ Section KalmanFilter.
     Axiom dense_sparse_mul_to_sparse: forall {n}, SDM n -> SSM n -> SSM n.
     Axiom dense_sparse_mul_to_sparse_correct: forall {n}, forall A: SDM n, forall B: SSM n, 
             sparsify (dense_sparse_mul A B) = dense_sparse_mul_to_sparse A B. 
-    Hint Resolve sparsify_correct densify_correct densify_correct_rev matrix_eq_commutes solveR_correct multi_assoc Densify_correct Densify_correct_rev dense_sparse_mul_correct sparse_dense_mul_correct dense_sparse_mul_to_sparse_correct: matrices.
+    Hint Resolve sparsify_correct densify_correct densify_correct_rev matrix_eq_commutes solveR_correct multi_assoc Densify_correct Densify_correct_rev dense_sparse_mul_correct sparse_dense_mul_correct dense_sparse_mul_to_sparse_correct eq_Mt_refl: matrices.
     
     hone representation using use_a_sparse_P;
       unfold use_a_sparse_P in *; cleanup; try reveal_body_evar.
 
     Ltac clearit r_o r_n :=
+        try apply Densify_correct_rev;
         repeat match goal with
+               | [ H: ?X r_o @= _ _ |- context [?X r_o]] => rewrite !H
                | [ H: ?X r_o = _ _ |- context [?X r_o]] => rewrite !H
                | [ |- context [?X r_o] ] =>
                  let type_field := type of (X r_o) in
@@ -242,15 +269,15 @@ Section KalmanFilter.
                  evar (field: Type);
                  evar (g: type_new_state -> field);
                  evar (f : field -> type_field);
-                 assert (X r_o = f (g r_n)) by (subst g; subst f; eauto with matrices);
+                 setoid_replace (X r_o) with (f (g r_n)) by (subst g; subst f; eauto with matrices);
                  subst field;
                  subst g;
                  subst f
                end.
-    Ltac guess_pick_val :=
+    Ltac guess_pick_val r_o r_n:=
         let x := fresh "x" in
         let SP := fresh "SP" in
-         evar (x: Vt n); evar (SP: SSM n); refine pick val {| Sx := x; SP := SP |}; subst x; subst SP; try (split; simpl; eauto with matrices).
+         evar (x: Vt n); evar (SP: SSM n); refine pick val {| Sx := x; SP := SP |}; subst x; subst SP; try (split; simpl; clearit r_o r_n; try apply eq_Mt_refl; eauto with matrices).
     Ltac end_template :=
         repeat refine blocked ret; try (simplify with monad laws); finish honing.
     Ltac Cholesky_Optimizer :=
@@ -365,16 +392,21 @@ Section KalmanFilter.
         etransitivity;
         [etransitivity; [repeat move_ret_to_blet_helper| simpl]; try (erewrite refine_smaller; [ | intros; move_ret_to_blet ; higher_order_reflexivity]);
          higher_order_reflexivity | ]; simpl.
-
+   
+      Ltac clear_a_Meq_pick r_o r_n:=
+        match goal with
+        | [|- refine (_ <- _; _ <- _; _) _] => erewrite pick_change_condition; [| let X := fresh "X" in let H := fresh "H" in intros X H; clearit r_o r_n; apply H]; refine pick val _; [ | apply eq_Mt_refl]; simplify with monad laws
+        end.
+        
       Ltac Optimize_single_method r_o r_n:=
-        clearit r_o r_n;
-      
+        
         etransitivity; [
-        repeat refine blocked ret;
-        guess_pick_val;
-        try simplify with monad laws;
-        higher_order_reflexivity;
-        simpl | ];
+          substitute_all;
+          repeat clear_a_Meq_pick r_o r_n;
+          guess_pick_val r_o r_n;
+          try simplify with monad laws;
+          higher_order_reflexivity;
+          simpl | ];
 
         converts_to_blocked_ret;
         substitute_all;
@@ -386,60 +418,24 @@ Section KalmanFilter.
         RemoveUseless;
         removeDup;
 
-        end_template. 
+        end_template.
+    
       {
         Optimize_single_method r_o r_n.
       }
 
       {
-        
-
-        substitute_all.
-        assert (P r_o @= densify (SP r_n)).
-        {
-          Print Densify_correct.
-          rewrite <- Densify_correct with (M := P r_o).
-          - reflexivity.
-          - assumption.
-        }
-        assert( P r_o @= P r_o. 
-        rewrite H2. 
-        
-            
-        replace (P r_o) with (densify(SP r_n)). eauto with matrices. 
-        apply refine_bind.
-        - refine pick val {| x:= _; P:= _|}.
-          Focus 2.
-          simpl.
-          split.
-          + apply eq_Mt_refl.
-            Focus 2.
-          apply eq_Mt_refl.
-            
-          - apply eq_Mt_refl. 
-          
-        let x := fresh "x" in
-        let SP := fresh "SP" in
-        evar (x: Vt n); evar (SP: SSM n); refine pick val {| S := x; SP := SP |}. subst x; subst SP; try (split; simpl; eauto with matrices).
-        
-        etransitivity.
-
-        repeat refine blocked ret.
-        
-        guess_pick_val.
-        try simplify with monad laws.
-        higher_order_reflexivity.
-        simpl.
-        
+        Optimize_single_method r_o r_n.
       }
       
-      { (* Update *) 
+      {
         Optimize_single_method r_o r_n.
       }
 
-    cbv beta.
-    expose_rets_hidden_under_blets.
-    finish_SharpeningADT_WithoutDelegation.
+      cbv beta.
+      expose_rets_hidden_under_blets. 
+      finish_SharpeningADT_WithoutDelegation.
+
   Defined.
 
   Definition KalmanImpl : ComputationalADT.cADT KalmanSig :=
@@ -466,3 +462,8 @@ Section KalmanFilter.
   (*   | _ => constr:(haystack) *)
   (*   end. *)
 End KalmanFilter.
+
+Require Import ExtrOcamlString.
+Extraction Inline blocked_let. 
+Recursive Extraction  KalmanImpl.
+Require Import 

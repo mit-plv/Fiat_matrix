@@ -134,12 +134,10 @@ Section A.
     end.
    
   Theorem test {n}: forall A B C D E F: DM n n,
-     (A @+ B @+ C) @+ (D @+ E @+ F) @+ (A @+ A @+ B) @= A.
+     (A @+ B @+ C) @+ (D @+ E @- F) @+ (A @+ A @+ B) @= A.
   Proof.
     intros.
     
-    Print M_and_M_and_M .
-    Locate "@+".
     repeat MOPT.
   Admitted.
 

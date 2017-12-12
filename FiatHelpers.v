@@ -84,7 +84,7 @@ Definition NoSubst (P: Prop) := P.
 Ltac args term :=
   match term with
   | ?term ?a1 ?a2 => let all_but_last := args (term a1) in
-                    constr:(all_but_last, a2)
+                    constr:((all_but_last, a2))
   | _ ?a => constr:(a)
   | _ => constr:(tt)
   end.
@@ -424,6 +424,21 @@ Proof.
     eauto.
 Qed. 
 
+Lemma pick_change_condition: 
+  forall (T D: Type)  (com: T -> Comp D) (P Q: T -> Prop) , 
+    (forall X : T, P X -> Q X) -> refine (x <- {X : T | Q X}; com(x)) (x <- {X: T | P X}; com(x)).
+Proof.
+  intros.
+  repeat intro.
+  computes_to_inv.
+  exists v0. 
+  split.
+  - unfold Ensembles.In.
+    apply H in H0.
+    eauto.
+  - unfold Ensembles.In.
+    eauto.
+Qed.
 
 Theorem refine_change_type A B:
   forall (a : Comp A) (f: A -> Comp B) (cast: A -> B) (cast_back: B -> A),

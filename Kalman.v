@@ -255,20 +255,6 @@ Section KalmanFilter.
       }
 
       {
-        etransitivity. 
-          substitute_all.
-          clear_a_Meq_pick r_o r_n.
-          erewrite pick_change_condition.
-          Focus 2. let X := fresh "X" in let H := fresh "H" in intros X H.
-          clearit r_o r_n.
-          apply H]; refine pick val _; [ | apply eq_Mt_refl]; simplify with monad laws.
-
-          
-          guess_pick_val r_o r_n;
-          try simplify with monad laws;
-          higher_order_reflexivity;
-          simpl | ].
-        
         Optimize_single_method r_o r_n.
       }
       
@@ -310,4 +296,3 @@ End KalmanFilter.
 Require Import ExtrOcamlString.
 Extraction Inline blocked_let. 
 Recursive Extraction  KalmanImpl.
-Require Import 

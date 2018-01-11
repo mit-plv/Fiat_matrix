@@ -292,7 +292,3 @@ Section KalmanFilter.
   (*   | _ => constr:(haystack) *)
   (*   end. *)
 End KalmanFilter.
-
-Require Import ExtrOcamlString.
-Extraction Inline blocked_let. 
-Recursive Extraction  KalmanImpl.

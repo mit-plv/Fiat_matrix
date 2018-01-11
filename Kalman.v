@@ -13,9 +13,9 @@ Require Import
         MyHelpers
         MatrixLemmas.
 
-
 Section KalmanFilter.
   Variable n : nat.
+  Context {ME : MatrixElem}.
 
   Record KalmanState :=
     { x : Vt n;

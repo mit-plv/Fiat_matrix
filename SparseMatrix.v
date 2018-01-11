@@ -27,14 +27,11 @@ if andb (i <? m) (j <? n) then
 else
   MEzero.
 
-
-Parameter is_eq_dec : forall x y: MEt, { eq x y } + { ~ eq x y }.
- Print is_eq_dec. 
 Fixpoint generate_row  (f: nat -> nat -> MEt) (j n i: nat) :=
   match j with
   | 0 => nil
   | S j' =>
-    if is_eq_dec (f i (n - j)) (MEzero) then
+    if MEeqdec (f i (n - j)) (MEzero) then
       generate_row f  j' n i
     else
       (n - j, f i (n - j)):: generate_row f j' n i
@@ -106,7 +103,7 @@ Proof.
   induction k.
   - simpl. reflexivity.
   - simpl.
-    destruct (is_eq_dec (f i (n - S k))).
+    destruct (MEeqdec (f i (n - S k))).
     + apply IHk.  omega.
     + simpl.
       assert (j <> n - S k) by omega.
@@ -124,7 +121,7 @@ Proof.
   induction k; intros.
   - omega.
   - simpl in *.
-    destruct (is_eq_dec (f i (n - S k)) e0).
+    destruct (MEeqdec (f i (n - S k)) e0).
     + destruct (beq_nat (n - S k) j) eqn: eq.
       * apply beq_nat_true in eq.
        

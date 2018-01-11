@@ -21,8 +21,9 @@ Class MatrixElem :=
     MEminus : MEt -> MEt -> MEt;
     MEtimes : MEt -> MEt -> MEt;
     MEdiv : MEt -> MEt -> MEt;
-    MEinv: MEt -> MEt;
-    
+    MEinv : MEt -> MEt;
+    MEeqdec : forall x y: MEt, { x = y } + { x <> y };
+
     MEfield :field_theory MEzero MEone MEplus MEtimes MEminus MEopp MEdiv MEinv eq }.
 
 Infix "*e" := MEtimes (at level 40, left associativity) : ME_scope.

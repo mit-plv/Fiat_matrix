@@ -76,38 +76,30 @@ Extract Inlined Constant solveR_lower => "KalmanAxioms.solveR_lower".
 
 (** This is the shorter, but slightly less efficient version: *)
 
-Extract Inlined Constant SparseMatrix => "KalmanAxioms.sparse_matrix".
-Extract Inlined Constant DenseMatrix => "KalmanAxioms.dense_matrix".
+(* Extract Inlined Constant SparseMatrix => "KalmanAxioms.sparse_matrix". *)
+(* Extract Inlined Constant DenseMatrix => "KalmanAxioms.dense_matrix". *)
 
-(** This is the longer version: *)
+(** This is the longer version, more efficient version: *)
 
-(* Transparent DenseMatrix. *)
-(* Extract Inlined Constant DenseMatrix_get => "KalmanAxioms.dense_get". *)
-(* Extract Inlined Constant DenseMatrix_mul => "KalmanAxioms.dense_mul". *)
-(* Extract Inlined Constant DenseMatrix_fill => "KalmanAxioms.dense_fill". *)
-(* Extract Inlined Constant DenseMatrix_elementwise_op => "KalmanAxioms.dense_elementwise_op". *)
-(* Transparent SparseMatrix. *)
-(* Extract Inlined Constant SparseMatrix_get => "KalmanAxioms.sparse_get". *)
-(* Extract Inlined Constant SparseMatrix_mul => "KalmanAxioms.sparse_mul". *)
-(* Extract Inlined Constant SparseMatrix_fill => "KalmanAxioms.sparse_fill". *)
-(* Extract Inlined Constant SparseMatrix_elementwise_op => "KalmanAxioms.sparse_elementwise_op". *)
+Transparent DenseMatrix.
+Extraction Inline DenseMatrix.
+Extract Inlined Constant DenseMatrix_get => "KalmanAxioms.dense_get".
+Extract Inlined Constant DenseMatrix_mul => "KalmanAxioms.dense_mul".
+Extract Inlined Constant DenseMatrix_fill => "KalmanAxioms.dense_fill".
+Extract Inlined Constant DenseMatrix_elementwise_op => "KalmanAxioms.dense_elementwise_op".
 
-(* Arguments MEt / . *)
-(* Arguments MEzero / . *)
-(* Arguments MEone / . *)
-(* Arguments MEopp / . *)
-(* Arguments MEplus / . *)
-(* Arguments MEminus / . *)
-(* Arguments MEtimes / . *)
-(* Arguments MEdiv / . *)
-(* Arguments MEinv / . *)
-(* Arguments MEeqdec / . *)
+Transparent SparseMatrix.
+Extraction Inline SparseMatrix.
+Extract Inlined Constant SparseMatrix_get => "KalmanAxioms.sparse_get".
+Extract Inlined Constant SparseMatrix_mul => "KalmanAxioms.sparse_mul".
+Extract Inlined Constant SparseMatrix_fill => "KalmanAxioms.sparse_fill".
+Extract Inlined Constant SparseMatrix_elementwise_op => "KalmanAxioms.sparse_elementwise_op".
 
-(* Arguments Mt / . *)
-(* Arguments Mget / . *)
-(* Arguments Mtimes / . *)
-(* Arguments Mfill / . *)
-(* Arguments Melementwise_op / . *)
+Arguments Mt / .
+Arguments Mget / .
+Arguments Mtimes / .
+Arguments Mfill / .
+Arguments Melementwise_op / .
 
 (** * Constants that we don't want to see in the final code **)
 

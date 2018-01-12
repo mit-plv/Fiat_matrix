@@ -48,71 +48,11 @@ Section Float.
        MEfield := float_field |}.
 End Float.
 
-Arguments KalmanImpl /.
-
-Arguments callcADTConstructor / .
-Arguments ComputationalADT.cConstructors / .
-Arguments ComputationalADT.pcConstructors / .
-Arguments callcADTMethod / .
-Arguments ComputationalADT.cMethods / .
-Arguments ComputationalADT.pcMethods / .
-
-(* (* Arguments MEReals /. *) *)
-(* Arguments MEt / . *)
-(* Arguments MEzero / . *)
-(* Arguments MEone / . *)
-(* Arguments MEopp / . *)
-(* Arguments MEplus / . *)
-(* Arguments MEminus / . *)
-(* Arguments MEtimes / . *)
-(* Arguments MEdiv / . *)
-(* Arguments MEinv / . *)
-
-(* Transparent DenseMatrix. *)
-(* (* Arguments DenseMatrix /. *) *)
-(* Arguments Mt / . *)
-(* Arguments Mget / . *)
-(* Arguments Mtimes / . *)
-(* Arguments Mfill / . *)
-(* Arguments Melementwise_op / . *)
-
-Arguments MVtimes /.
-Arguments Vplus /.
-
-Open Scope string_scope.
-
-Section KalmanExtraction.
-  Existing Instance MEfloat.
-
-  Definition rep n
-    : Type :=
-    Eval simpl in ComputationalADT.cRep (KalmanImpl n).
-
-  Definition KalmanInit {n} (init : KalmanState n)
-    : rep n :=
-    Eval simpl in (CallConstructor (KalmanImpl n) "Init" init).
-
-  Definition KalmanPredict {n} (r: rep n) (F: SDM n) (B: SDM n) (Q: SDM n) (u: Vt n)
-    : rep n * KalmanState n :=
-    Eval simpl in (CallMethod (KalmanImpl n) "Predict" r F B Q u).
-
-  Definition KalmanUpdate {n} (r: rep n) (H: SDM n) (R: SDM n) (z: Vt n)
-    : rep n :=
-    Eval simpl in (fst (CallMethod (KalmanImpl n) "Update" r H R z)).
-End KalmanExtraction.
-
-Extraction Inline blocked_let.
-(* Extraction Inline MVtimes Vplus. *)
-Extraction Inline Mt Mget Mtimes Mfill Melementwise_op.
-Extraction Inline MEt MEzero MEone MEopp MEplus MEminus MEtimes MEdiv MEinv.
-
-(* Extraction KalmanInit. *)
-(* Extraction KalmanPredict. *)
-(* Extraction KalmanUpdate. *)
-
 Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlString.
 Require Import ExtrOcamlNatInt.
+
+(* Axioms *)
 
 Extract Inlined Constant float_t => "KalmanAxioms.float_t".
 Extract Inlined Constant float_zero => "KalmanAxioms.float_zero".
@@ -131,5 +71,93 @@ Extract Inlined Constant sparse_dense_mul => "KalmanAxioms.sparse_dense_mul".
 Extract Inlined Constant dense_sparse_mul => "KalmanAxioms.dense_sparse_mul".
 Extract Inlined Constant solveR_upper => "KalmanAxioms.solveR_upper".
 Extract Inlined Constant solveR_lower => "KalmanAxioms.solveR_lower".
+
+(** * Constants that we want to implement in OCaml **)
+
+(** This is the shorter, but slightly less efficient version: *)
+
+Extract Inlined Constant SparseMatrix => "KalmanAxioms.sparse_matrix".
+Extract Inlined Constant DenseMatrix => "KalmanAxioms.dense_matrix".
+
+(** This is the longer version: *)
+
+(* Transparent DenseMatrix. *)
+(* Extract Inlined Constant DenseMatrix_get => "KalmanAxioms.dense_get". *)
+(* Extract Inlined Constant DenseMatrix_mul => "KalmanAxioms.dense_mul". *)
+(* Extract Inlined Constant DenseMatrix_fill => "KalmanAxioms.dense_fill". *)
+(* Extract Inlined Constant DenseMatrix_elementwise_op => "KalmanAxioms.dense_elementwise_op". *)
+(* Transparent SparseMatrix. *)
+(* Extract Inlined Constant SparseMatrix_get => "KalmanAxioms.sparse_get". *)
+(* Extract Inlined Constant SparseMatrix_mul => "KalmanAxioms.sparse_mul". *)
+(* Extract Inlined Constant SparseMatrix_fill => "KalmanAxioms.sparse_fill". *)
+(* Extract Inlined Constant SparseMatrix_elementwise_op => "KalmanAxioms.sparse_elementwise_op". *)
+
+(* Arguments MEt / . *)
+(* Arguments MEzero / . *)
+(* Arguments MEone / . *)
+(* Arguments MEopp / . *)
+(* Arguments MEplus / . *)
+(* Arguments MEminus / . *)
+(* Arguments MEtimes / . *)
+(* Arguments MEdiv / . *)
+(* Arguments MEinv / . *)
+(* Arguments MEeqdec / . *)
+
+(* Arguments Mt / . *)
+(* Arguments Mget / . *)
+(* Arguments Mtimes / . *)
+(* Arguments Mfill / . *)
+(* Arguments Melementwise_op / . *)
+
+(** * Constants that we don't want to see in the final code **)
+
+(** Using extraction inline is typically not enough; the following ensures that
+    we can do most simplifications using the [simpl] tactic **)
+Arguments KalmanImpl /.
+Arguments callcADTConstructor / .
+Arguments ComputationalADT.cConstructors / .
+Arguments ComputationalADT.pcConstructors / .
+Arguments callcADTMethod / .
+Arguments ComputationalADT.cMethods / .
+Arguments ComputationalADT.pcMethods / .
+
+(** A few things can be done using extraction inline, though: *)
+
+Extraction Inline blocked_let.
+
+(** Inlining the accessors replaces them by direct property accesses
+    ([record.field] instead of [field record]) *)
+Extraction Inline Mt Mget Mtimes Mfill Melementwise_op.
+Extraction Inline MEt MEzero MEone MEopp MEplus MEminus MEtimes MEdiv MEinv MEeqdec.
+
+(** * And now the actual extraction:  *)
+
+Open Scope string_scope.
+
+Transparent blocked_let.
+Ltac simplify term :=
+  let term := (eval simpl in term) in
+  let term := (eval cbv beta iota delta [blocked_let] in term) in
+  exact term.
+Opaque blocked_let.
+
+Section KalmanExtraction.
+  Existing Instance MEfloat.
+
+  Definition rep n : Type :=
+    ltac:(simplify (ComputationalADT.cRep (KalmanImpl n))).
+
+  Definition KalmanInit {n} (init : KalmanState n)
+    : rep n :=
+    ltac:(simplify (CallConstructor (KalmanImpl n) "Init" init)).
+
+  Definition KalmanPredict {n} (r: rep n) (F: SDM n) (B: SDM n) (Q: SDM n) (u: Vt n)
+    : rep n * KalmanState n :=
+    ltac:(simplify (CallMethod (KalmanImpl n) "Predict" r F B Q u)).
+
+  Definition KalmanUpdate {n} (r: rep n) (H: SDM n) (R: SDM n) (z: Vt n)
+    : rep n :=
+    ltac:(simplify (fst (CallMethod (KalmanImpl n) "Update" r H R z))).
+End KalmanExtraction.
 
 Extraction "kalman.ml" KalmanInit KalmanPredict KalmanUpdate.

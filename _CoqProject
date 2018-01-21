@@ -1,5 +1,5 @@
 -I ../fiat/src/Common/Tactics
--R ./ Top
+-R ./ Fiat_matrix
 -R ../fiat/src/ Fiat
 -install none
 

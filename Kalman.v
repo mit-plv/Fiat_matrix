@@ -77,7 +77,6 @@ Section KalmanFilter.
     FullySharpened KalmanSpec.
   Proof.
     start sharpening ADT.
-    unfold StringId, StringId0, StringId1.
 
     Open Scope string_scope.
 

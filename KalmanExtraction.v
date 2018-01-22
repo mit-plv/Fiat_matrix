@@ -152,4 +152,6 @@ Section KalmanExtraction.
     ltac:(simplify (fst (CallMethod (KalmanImpl n) "Update" r H R z))).
 End KalmanExtraction.
 
+(*
 Extraction "kalman.ml" KalmanInit KalmanPredict KalmanUpdate.
+*)

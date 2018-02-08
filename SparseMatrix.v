@@ -21,20 +21,17 @@ Fixpoint get_v {ME: MatrixElem} (l: list (nat * MEt)) (k : nat) :=
   | (a, b) :: l' => if (Nat.eqb k a) then b +e get_v l' k else get_v l' k
   end. 
 
-Definition get {ME: MatrixElem} m n (M: list (list (nat * MEt))) (i j : nat) := 
+Definition SparseMatrix_get {ME: MatrixElem} m n (M: list (list (nat * MEt))) (i j : nat) := 
 if andb (i <? m) (j <? n) then
   get_v (nth_default nil M i) j
 else
   MEzero.
 
-
-Parameter is_eq_dec : forall x y: MEt, { eq x y } + { ~ eq x y }.
- Print is_eq_dec. 
 Fixpoint generate_row  (f: nat -> nat -> MEt) (j n i: nat) :=
   match j with
   | 0 => nil
   | S j' =>
-    if is_eq_dec (f i (n - j)) (MEzero) then
+    if MEeqdec (f i (n - j)) (MEzero) then
       generate_row f  j' n i
     else
       (n - j, f i (n - j)):: generate_row f j' n i
@@ -83,11 +80,11 @@ Qed.
   
 Lemma generate_get_row_correct:
   forall m n f i j,
-    i < m -> j < n -> get m n (Generate m n f) i j = get_v (generate_row f n n i) j.
+    i < m -> j < n -> SparseMatrix_get m n (Generate m n f) i j = get_v (generate_row f n n i) j.
 Proof.
   intros.
   unfold Generate.
-  unfold get.
+  unfold SparseMatrix_get.
   assert (i <? m = true) by (apply Nat.leb_le; omega).
   assert (j <? n = true) by (apply Nat.leb_le; omega).
   rewrite H1, H2.
@@ -106,7 +103,7 @@ Proof.
   induction k.
   - simpl. reflexivity.
   - simpl.
-    destruct (is_eq_dec (f i (n - S k))).
+    destruct (MEeqdec (f i (n - S k))).
     + apply IHk.  omega.
     + simpl.
       assert (j <> n - S k) by omega.
@@ -124,7 +121,7 @@ Proof.
   induction k; intros.
   - omega.
   - simpl in *.
-    destruct (is_eq_dec (f i (n - S k)) e0).
+    destruct (MEeqdec (f i (n - S k)) e0).
     + destruct (beq_nat (n - S k) j) eqn: eq.
       * apply beq_nat_true in eq.
        
@@ -152,14 +149,14 @@ Qed.
 Fixpoint v_v_mul_le {ME: MatrixElem} (m n p i j k: nat) (v : list (nat * MEt)) (M2: list (list (nat * MEt))) :=
   match v with 
   | nil => MEzero
-  | (t, a)::l' => if (t <? k) then (a *e get n p M2 t j) +e v_v_mul_le m n p i j k l' M2
+  | (t, a)::l' => if (t <? k) then (a *e SparseMatrix_get n p M2 t j) +e v_v_mul_le m n p i j k l' M2
                   else v_v_mul_le m n p i j k l' M2
   end. 
 
 Fixpoint v_v_mul_eq {ME: MatrixElem} (m n p i j k: nat) (v : list (nat * MEt)) (M2: list (list (nat * MEt))) :=
   match v with 
   | nil => MEzero
-  | (t, a)::l' => if (beq_nat t k) then (a *e get n p M2 t j) +e v_v_mul_eq m n p i j k l' M2
+  | (t, a)::l' => if (beq_nat t k) then (a *e SparseMatrix_get n p M2 t j) +e v_v_mul_eq m n p i j k l' M2
                   else v_v_mul_eq m n p i j k l' M2
   end. 
 
@@ -169,12 +166,14 @@ Fixpoint v_matrix_mul {ME: MatrixElem} (m n p i j: nat) (M1 M2: list (list (nat 
   | S j' => (j', v_v_mul_le m n p i j' n (nth_default nil M1 i) M2) :: v_matrix_mul m n p i j' M1 M2
   end. 
 
-Fixpoint Matrix_mul {ME: MatrixElem} (m n p k: nat) (M1 M2: list (list (nat * MEt))):= 
+Fixpoint SparseMatrix_mul' {ME: MatrixElem} (m n p k: nat) (M1 M2: list (list (nat * MEt))):= 
   match k with 
   | 0 => @nil(list  (nat * MEt))
-  | S k' => v_matrix_mul m n p (m - k) p M1 M2::Matrix_mul m n p k' M1 M2
+  | S k' => v_matrix_mul m n p (m - k) p M1 M2::SparseMatrix_mul' m n p k' M1 M2
   end. 
 
+Definition SparseMatrix_mul {ME: MatrixElem} (m n p: nat) (M1 M2: list (list (nat * MEt))) :=
+  @SparseMatrix_mul' ME m n p m M1 M2.
 
 Lemma v_v_mul_induct: forall m n p i j k v M2, 
   v_v_mul_le m n p i j k v M2 +e v_v_mul_eq m n p i j k v M2 = v_v_mul_le m n p i j (S k) v M2. 
@@ -210,10 +209,10 @@ Proof.
 Qed. 
 
 Lemma v_v_mul_eq_out: forall m n p i j k M1 M2, 
-  i < m -> k < n -> v_v_mul_eq m n p i j k (nth_default nil M1 i) M2 = get m n M1 i k *e get n p M2 k j. 
+  i < m -> k < n -> v_v_mul_eq m n p i j k (nth_default nil M1 i) M2 = SparseMatrix_get m n M1 i k *e SparseMatrix_get n p M2 k j. 
 Proof. 
   intros. 
-  unfold get at 1. assert (andb (i <? m) (k <? n) = true).
+  unfold SparseMatrix_get at 1. assert (andb (i <? m) (k <? n) = true).
   { apply Bool.andb_true_iff. split; apply Nat.ltb_lt; omega. }
   rewrite H1. clear H1. 
   remember ((nth_default nil M1 i)) as l. clear Heql. 
@@ -226,7 +225,7 @@ Qed.
 
 
 Lemma v_v_mul_equals_sum: forall m n p i j k M1 M2, 
-  i < m -> k <= n -> v_v_mul_le m n p i j k (nth_default nil M1 i) M2 = sum k (fun k => (get m n M1 i k) *e (get n p M2 k j)).
+  i < m -> k <= n -> v_v_mul_le m n p i j k (nth_default nil M1 i) M2 = sum k (fun k => (SparseMatrix_get m n M1 i k) *e (SparseMatrix_get n p M2 k j)).
 Proof. 
   intros. 
   induction k as [| k IHk]. 
@@ -242,7 +241,7 @@ Qed.
 
 
 Lemma Mtimes_row : forall m n p k M1 M2 i, 
-  k <= m -> i < k -> nth_default nil (Matrix_mul m n p k M1 M2) i = v_matrix_mul m n p (m - k + i) p M1 M2. 
+  k <= m -> i < k -> nth_default nil (SparseMatrix_mul' m n p k M1 M2) i = v_matrix_mul m n p (m - k + i) p M1 M2. 
 Proof. 
   simpl; intros.
   generalize dependent i. 
@@ -275,7 +274,7 @@ Qed.
 
 
 Lemma Mtimes_col : forall m n p i j k M1 M2, 
-  i < m -> k < j -> get_v (v_matrix_mul m n p i j M1 M2) k = sum n (fun k0 => (get m n M1 i k0) *e (get n p M2 k0 k)).
+  i < m -> k < j -> get_v (v_matrix_mul m n p i j M1 M2) k = sum n (fun k0 => (SparseMatrix_get m n M1 i k0) *e (SparseMatrix_get n p M2 k0 k)).
 Proof. 
   simpl; intros. 
   generalize dependent k.
@@ -294,15 +293,20 @@ Qed.
 
 End A. 
 
+Definition SparseMatrix_fill {ME} m n f :=
+  Generate ME m n f.
+Definition SparseMatrix_elementwise_op {ME: MatrixElem} m n op m1 m2 :=
+  Generate ME m n (fun i j => op (SparseMatrix_get m n m1 i j) (SparseMatrix_get m n m2 i j)).
 
 Definition SparseMatrix {ME: MatrixElem} : Matrix.
  unshelve eapply {| Mt m n := list (list (nat * MEt));
-                    Mget m n mx i j := get m n mx i j; 
-                    Mtimes m n p m1 m2 := Matrix_mul m n p m m1 m2;
-                    Mfill m n f := Generate ME m n f;
-                    Melementwise_op m n op m1 m2:= Generate ME m n (fun i j => op (get m n m1 i j) (get m n m2 i j))|}.
+                    Mget := SparseMatrix_get;
+                    Mtimes := SparseMatrix_mul;
+                    Mfill := SparseMatrix_fill;
+                    Melementwise_op := SparseMatrix_elementwise_op |};
+   unfold SparseMatrix_fill, SparseMatrix_elementwise_op, SparseMatrix_mul.
   simpl. intros. 
-  unfold get at 1. 
+  unfold SparseMatrix_get at 1. 
   assert (H1: i <? m = true).
   { rewrite Nat.ltb_antisym. apply Bool.negb_true_iff. apply Nat.leb_gt. apply H. }
   assert (H2: j <? p = true).

@@ -12,7 +12,7 @@ Section A.
  Add Field Afield : MEfield.
 
 
- Definition get {ME: MatrixElem} (m n: nat) (M: list MEt) (i j : nat) :=
+ Definition DenseMatrix_get {ME: MatrixElem} (m n: nat) (M: list MEt) (i j : nat) :=
    nth_default MEzero M (i * n + j). 
 
  Fixpoint Generate {ME: MatrixElem} (m n k: nat) (f: nat -> MEt) :=
@@ -21,11 +21,11 @@ Section A.
    | S k' => (f (m * n - k)) :: Generate m n k' f
    end.
 
- Definition Matrix_mul {ME: MatrixElem} (m n p: nat) (M1 M2: list MEt):=
-   Generate m p (m * p) (fun k => (sum n (fun i => get m n M1 (Nat.div k  p) i *e get n p M2 i (Nat.modulo k p)))).
+ Definition DenseMatrix_mul {ME: MatrixElem} (m n p: nat) (M1 M2: list MEt):=
+   Generate m p (m * p) (fun k => (sum n (fun i => DenseMatrix_get m n M1 (Nat.div k  p) i *e DenseMatrix_get n p M2 i (Nat.modulo k p)))).
 
  Definition Matrix_elem_op {ME: MatrixElem} (op: MEt -> MEt -> MEt) (m n: nat) (M1 M2: list MEt):=
-   Generate m n (m * n) (fun k => op (get m n M1 (Nat.div k n) (Nat.modulo k n)) (get m n M2 (Nat.div k n) (Nat.modulo k n))).
+   Generate m n (m * n) (fun k => op (DenseMatrix_get m n M1 (Nat.div k n) (Nat.modulo k n)) (DenseMatrix_get m n M2 (Nat.div k n) (Nat.modulo k n))).
 
  Lemma Generate_index: forall {ME: MatrixElem} (m n l i: nat) (f: nat -> MEt),
      i < l -> 
@@ -45,10 +45,10 @@ Section A.
 
  Corollary Generate_get: forall {ME: MatrixElem} (m n i j: nat) (f: nat -> MEt),
      i < m -> j < n -> 
-     get m n (Generate m n (m * n) f) i j = f(i * n + j).
+     DenseMatrix_get m n (Generate m n (m * n) f) i j = f(i * n + j).
  Proof.
    intros.
-   unfold get.
+   unfold DenseMatrix_get.
    rewrite Generate_index.
    - rewrite minus_plus. reflexivity.
    - destruct m; try omega.
@@ -69,14 +69,18 @@ Section A.
  Qed.
 End A. 
 
+Definition DenseMatrix_fill {ME: MatrixElem} m n f := Generate m n (m * n) (fun x => f (x / n) (x mod n)).
+Definition DenseMatrix_elementwise_op {ME: MatrixElem} m n op m1 m2 := Matrix_elem_op op m n m1 m2.
+
 Definition DenseMatrix {ME: MatrixElem} : Matrix.
- unshelve eapply {| Mt m n := list  MEt;
-                    Mget m n mx i j := get m n mx i j; 
-                    Mtimes m n p m1 m2 := Matrix_mul m n p m1 m2;
-                    Mfill m n f:= Generate m n (m * n) (fun x => f (x / n) (x mod n));
-                    Melementwise_op m n op m1 m2:= Matrix_elem_op op m n m1 m2|}.
+ unshelve eapply {| Mt m n := list MEt;
+                    Mget := DenseMatrix_get;
+                    Mtimes := DenseMatrix_mul;
+                    Mfill := DenseMatrix_fill;
+                    Melementwise_op := DenseMatrix_elementwise_op |};
+   unfold DenseMatrix_fill, DenseMatrix_elementwise_op.
  - intros.  
-   unfold Matrix_mul. 
+   unfold DenseMatrix_mul. 
    rewrite Generate_get; try assumption.
    replace ((i * p + j) / p) with (i).
    replace ((i * p + j) mod p) with (j).

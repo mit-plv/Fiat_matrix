@@ -1,6 +1,7 @@
 Require Import PeanoNat.
 Require Import List.
 Require Import Coq.omega.Omega.
+Require Import FiatHelpers.
 
 Section ListHelpers.
   Lemma nth_default_0: forall A: Type, forall a b : A, forall l: list A, 
@@ -73,3 +74,19 @@ Ltac is_variable A :=
     let eq := fresh "eq" in
     assert (eq: A = B) by auto; clear eq
   end.
+
+Ltac reveal_body_evar :=
+  match goal with
+  | [ H := ?x : methodType _ _ _ |- _ ] => is_evar x; progress unfold H
+                                                             (* | [ H := ?x : constructorType _ _ |- _ ] => is_evar x; progress unfold H *)
+  end.
+    
+Ltac cleanup :=
+  repeat match goal with
+         | [ H: _ /\ _ |- _ ] => destruct H
+         | _ => progress subst
+         | _ => progress (cbv iota)
+         | _ => progress simpl
+         | _ => simplify with monad laws
+         end.
+

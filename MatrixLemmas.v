@@ -11,14 +11,16 @@ Require Import
         DenseMatrix
         MyHelpers.
 
+Notation SDM n := (Mt (Matrix := DenseMatrix) n n).
+Notation SSM n := (Mt (Matrix := SparseMatrix) n n).
+Notation Vt n := (Mt (Matrix := DenseMatrix) n 1).
 
-Variable E: MatrixElem.
-Notation SDM n := (Mt (ME := E) (Matrix := DenseMatrix) n n).
-Notation SSM n := (Mt (ME := E) (Matrix := SparseMatrix) n n).
-Notation Vt n := (Mt (ME := E) (Matrix := DenseMatrix) n 1).
 Global Opaque DenseMatrix.
-Global Opaque SparseMatrix. 
+Global Opaque SparseMatrix.
 
+Section MatrixLemmas.
+
+Context {E: MatrixElem}.
 
 Definition transpose {n} (A : SDM n) :=
   @Mfill E DenseMatrix n n (fun i j => Mget A j i).
@@ -53,7 +55,7 @@ Global Add Parametric Morphism n: (Vminus ) with
       signature (Meq (m:=n)(n:=1)) ==> (Meq (m:=n)(n:=1)) ==> (Meq (m:=n)(n:=1)) as Vminus_mor.
 Admitted.
 
-Definition Id {n} := I n E DenseMatrix.
+Definition Id {n} := @I n E DenseMatrix.
 
 Arguments Mtimes : simpl never.
 
@@ -150,4 +152,10 @@ Axiom sparse_dense_mul_correct: forall {n}, forall A: SSM n, forall B: SDM n,
 Axiom dense_sparse_mul_to_sparse: forall {n}, SDM n -> SSM n -> SSM n.
 Axiom dense_sparse_mul_to_sparse_correct: forall {n}, forall A: SDM n, forall B: SSM n, 
         sparsify (dense_sparse_mul A B) = dense_sparse_mul_to_sparse A B. 
+End MatrixLemmas.
+
 Hint Resolve sparsify_correct densify_correct densify_correct_rev matrix_eq_commutes solveR_correct multi_assoc Densify_correct Densify_correct_rev dense_sparse_mul_correct sparse_dense_mul_correct dense_sparse_mul_to_sparse_correct eq_Mt_refl: matrices.
+
+Infix "&*" := MVtimes (at level 40, left associativity) : matrix_scope.
+Infix "&+" := Vplus (at level 50, left associativity) : matrix_scope.
+Infix "&-" := Vminus (at level 50, left associativity) : matrix_scope.

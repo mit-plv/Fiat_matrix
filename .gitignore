@@ -5,3 +5,4 @@
 *.glob
 .DS_Store
 *.v.d
+Makefile.coq

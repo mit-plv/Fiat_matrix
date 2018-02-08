@@ -4,6 +4,7 @@
 -install none
 
 Matrix.v
+MatrixLemmas.v
 MatrixInversion.v
 
 SparseMatrix.v

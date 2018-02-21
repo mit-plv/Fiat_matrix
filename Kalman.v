@@ -18,10 +18,10 @@ Section KalmanFilter.
   Variable n : nat.
   Context {ME : MatrixElem}.
 
-  Record KalmanState :=
+  Record KalmanState:=
     { x : Vt n;
-      P : SDM n }.
-
+      P : SDM n}.
+  
   Definition KalmanSig : ADTSig :=
     ADTsignature {
       Constructor "Init" : KalmanState -> rep,
@@ -70,21 +70,16 @@ Section KalmanFilter.
     hone representation using use_a_sparse_P;
       unfold use_a_sparse_P in *; cleanup; try reveal_body_evar.
 
-      Ltac guess_pick_val r_o r_n:=
-        let x := fresh "x" in
-        let SP := fresh "SP" in
-         evar (x: Vt n); evar (SP: SSM n); refine pick val {| Sx := x; SP := SP |}; subst x; subst SP; try (split; simpl; clearit r_o r_n; try apply eq_Mt_refl; eauto with matrices).
-
       {
-        Optimize_single_method guess_pick_val r_o r_n.
+        Optimize_single_method r_o r_n.
       }
 
       {
-        Optimize_single_method guess_pick_val r_o r_n.
+        Optimize_single_method r_o r_n.
       }
       
       {
-        Optimize_single_method guess_pick_val r_o r_n.
+        Optimize_single_method r_o r_n.
       }
 
       cbv beta.

@@ -3,6 +3,7 @@ Require Import Matrix.
 Require Import MatrixLemmas.
 Require Import Coq.Setoids.Setoid.
 Require Import FiatHelpers.
+Require Import Coq.Strings.String.
 
 Ltac clearit r_o r_n :=
     try apply Densify_correct_rev;
@@ -143,8 +144,16 @@ Ltac RemoveUseless :=
     match goal with
     | [|- refine (_ <- _; _ <- _; _) _] => erewrite pick_change_condition; [| let X := fresh "X" in let H := fresh "H" in intros X H; clearit r_o r_n; apply H]; refine pick val _; [ | apply eq_Mt_refl]; simplify with monad laws
     end.
-    
-  Ltac Optimize_single_method guess_pick_val r_o r_n:=
+
+  Ltac split_on_and :=
+    match goal with
+      | [ |- _ /\ _] => split
+    end.
+
+  Ltac guess_pick_val r_o r_n:=
+        unshelve erewrite refine_pick_val; [ econstructor | | try (repeat split_on_and; simpl; clearit r_o r_n; try apply eq_Mt_refl; eauto with matrices)].
+
+  Ltac Optimize_single_method r_o r_n:=
     
     etransitivity; [
       substitute_all;
@@ -165,3 +174,28 @@ Ltac RemoveUseless :=
     removeDup;
 
     end_template.
+
+  Ltac unfold_all_strings :=
+      repeat match goal with
+             | [ |- context[?x]] =>
+               let A := type of x in
+               assert (A = string) by auto;
+               unfold x
+             | [ H : ?A = ?A |- _] => clear H
+             end.
+
+  Ltac find_ro_rn_then_optimize OldType NewType :=
+    match goal with
+    | [r_o: OldType, r_n: NewType |- _] => Optimize_single_method r_o r_n
+    | [ |- _] => Optimize_single_method OldType OldType
+    end.
+  
+  Ltac Optimize_ADT OldType NewType relation:=
+    start sharpening ADT;
+    unfold_all_strings;
+    hone representation using relation;
+    unfold relation in *; cleanup; try reveal_body_evar; 
+    try find_ro_rn_then_optimize OldType NewType;
+    cbv beta;
+    expose_rets_hidden_under_blets;
+    finish_SharpeningADT_WithoutDelegation.

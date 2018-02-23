@@ -17,6 +17,19 @@ Section KalmanFilter.
   Variable n : nat.
   Context {ME : MatrixElem}.
 
+  Fixpoint nat_to_MEt (n : nat) : MEt :=
+  match n with
+  | 0 => e0
+  | S n' => e1 +e nat_to_MEt n'
+  end.
+
+  (* These operations need to be implemented. *)
+  (* log of the determinant of a matrix *)
+  Axiom logdet : SDM n -> MEt.
+  (* log of 2*pi *)
+  Axiom log_two_pi : MEt.
+  
+
   Record KalmanState :=
     { x : Vt n;
       P : SDM n }.
@@ -25,7 +38,7 @@ Section KalmanFilter.
     ADTsignature {
       Constructor "Init" : KalmanState -> rep,
       Method "Predict"   : rep * (SDM n) * (SDM n) * (SDM n) * (Vt n) -> rep * KalmanState,
-      Method "Update"    : rep * (SDM n) * (SDM n) * (Vt n) -> rep * unit
+      Method "Update"    : rep * (SDM n) * (SDM n) * (Vt n) -> rep * MEt
     }.
 
   Definition KalmanSpec : ADT KalmanSig :=
@@ -41,14 +54,14 @@ Section KalmanFilter.
         pp <- {P | P @= p'};
         ret (r, {|x := xx; P := pp|}),
 
-      Def Method3 "Update" (r : rep) (H: SDM n) (R: SDM n) (z: Vt n) : rep * unit :=
+      Def Method3 "Update" (r : rep) (H: SDM n) (R: SDM n) (z: Vt n) : rep * MEt :=
         y' <<- z &- H &* r.(x);
         S' <<- H @* r.(P) @* transpose(H) @+ R;
         K' <<- r.(P) @* transpose(H) @* inversion(S');
         x' <<- r.(x) &+ K' &* y';
         p' <<- (Id @- K' @* H) @* r.(P);
         garbage <<- K' @* K' @+ S';
-        ret ({| x := x'; P := p' |}, tt)
+        ret ({| x := x'; P := p' |}, e0 -e (e1 /e (e1 +e e1)) *e (Mget (transpose y' @* inversion S' @* y') 0 0 +e logdet S' +e nat_to_MEt n *e log_two_pi))
     }%methDefParsing.
   
   Ltac reveal_body_evar :=

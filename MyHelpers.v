@@ -75,6 +75,28 @@ Ltac is_variable A :=
     assert (eq: A = B) by auto; clear eq
   end.
 
+Ltac is_constant a :=
+  let a := (eval compute in a) in
+  assert (a = a) by
+      (clear;
+       lazymatch goal with
+       | [ H: _ |- _ ] => fail "NC"
+       | _ => idtac
+       end;
+       reflexivity).
+
+Ltac is_function a :=
+  let b := type of (a) in
+  match b with
+  | ?A -> ?B => idtac
+  end.
+
+Ltac separable a := 
+  tryif (is_constant a) then fail 0 
+  else tryif (is_variable a) then fail 0           
+    else tryif (is_function a) then fail 0
+      else idtac.
+
 Ltac reveal_body_evar :=
   match goal with
   | [ H := ?x : methodType _ _ _ |- _ ] => is_evar x; progress unfold H

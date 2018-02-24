@@ -22,8 +22,8 @@ Section MatrixLemmas.
 
 Context {E: MatrixElem}.
 
-Definition transpose {n} (A : SDM n) :=
-  @Mfill E DenseMatrix n n (fun i j => Mget A j i).
+Definition transpose {n m MM} (A : @Mt E MM n m) :=
+  @Mfill E MM m n (fun i j => Mget A j i).
 Definition MVtimes {n} (M: SDM n) (v: Vt n) := M @* v.
 Axiom inversion : forall {n}, SDM n -> SDM n.
 
@@ -31,14 +31,20 @@ Global Add Parametric Morphism n: (MVtimes ) with
       signature (Meq (m:=n)(n:=n)) ==> (Meq (m:=n)(n:=1)) ==> (Meq (m:=n)(n:=1)) as MVtimes_mor.
 Admitted.
 
-Global Add Parametric Morphism n: (transpose ) with
-      signature (Meq (m:=n)(n:=n)) ==> (Meq (m:=n)(n:=n)) as transpose_mor.
+Global Add Parametric Morphism n m MM: (transpose ) with
+      signature (Meq (m:=m)(n:=n)(M1:=MM)) ==> (Meq (m:=n)(n:=m)(M1:=MM)) as transpose_mor.
 Admitted.
 
 
 Global Add Parametric Morphism n: (inversion ) with
       signature (Meq (m:=n)(n:=n)) ==> (Meq (m:=n)(n:=n)) as inversion_mor.
 Admitted.
+
+
+Global Add Parametric Morphism m n: (Mget) with
+      signature (Meq (m:=m)(n:=n)(ME:=E)(M1:=DenseMatrix)) ==> (eq) ==> (eq) ==> (eq) as mget_mor.
+Admitted.
+
 
 Infix "&*" := MVtimes (at level 40, left associativity) : matrix_scope.
 Definition Vplus {n} (v: Vt n) (u: Vt n):= v @+ u.
@@ -151,7 +157,15 @@ Axiom sparse_dense_mul_correct: forall {n}, forall A: SSM n, forall B: SDM n,
         sparse_dense_mul A B = densify A @*  B.
 Axiom dense_sparse_mul_to_sparse: forall {n}, SDM n -> SSM n -> SSM n.
 Axiom dense_sparse_mul_to_sparse_correct: forall {n}, forall A: SDM n, forall B: SSM n, 
-        sparsify (dense_sparse_mul A B) = dense_sparse_mul_to_sparse A B. 
+        sparsify (dense_sparse_mul A B) = dense_sparse_mul_to_sparse A B.
+
+Lemma if_cond_helper {n m MM} : forall x1:bool, forall A B C D: @Mt E MM n m, A @= B -> C @= D -> (if x1 then A else C) @= (if x1 then B else D).
+Proof.
+  intros.
+  destruct x1; auto.
+Qed.
+
+
 End MatrixLemmas.
 
 Hint Resolve sparsify_correct densify_correct densify_correct_rev matrix_eq_commutes solveR_correct multi_assoc Densify_correct Densify_correct_rev dense_sparse_mul_correct sparse_dense_mul_correct dense_sparse_mul_to_sparse_correct eq_Mt_refl: matrices.
@@ -159,3 +173,5 @@ Hint Resolve sparsify_correct densify_correct densify_correct_rev matrix_eq_comm
 Infix "&*" := MVtimes (at level 40, left associativity) : matrix_scope.
 Infix "&+" := Vplus (at level 50, left associativity) : matrix_scope.
 Infix "&-" := Vminus (at level 50, left associativity) : matrix_scope.
+
+

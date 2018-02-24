@@ -5,26 +5,28 @@ Require Import Coq.Setoids.Setoid.
 Require Import FiatHelpers.
 Require Import Coq.Strings.String.
 
+
+                             
 Ltac clearit r_o r_n :=
     try apply Densify_correct_rev;
-    repeat match goal with
-           | [ H: ?X r_o @= _ _ |- context [?X r_o]] => rewrite !H
-           | [ H: ?X r_o = _ _ |- context [?X r_o]] => rewrite !H
-           | [ |- context [?X r_o] ] =>
-             let type_field := type of (X r_o) in
-             let type_new_state := type of (r_n) in
-             let field := fresh "field" in
-             let g := fresh "g" in
-             let f := fresh "f" in 
-             evar (field: Type);
-             evar (g: type_new_state -> field);
-             evar (f : field -> type_field);
-             setoid_replace (X r_o) with (f (g r_n)) by (subst g; subst f; eauto with matrices);
-             subst field;
-             subst g;
-             subst f
-           end.
-
+    repeat  match goal with
+       | [ |- _] => erewrite if_cond_helper; [ | progress clearit r_o r_n; reflexivity | progress clearit r_o r_n; reflexivity]                    
+       | [ H: ?X r_o @= _ _ |- context [?X r_o]] => rewrite H; auto
+       | [ H: ?X r_o = _ _ |- context [?X r_o]] => rewrite H; auto
+       | [ |- context [?X r_o] ] =>
+         let type_field := type of (X r_o) in
+         let type_new_state := type of (r_n) in
+         let field := fresh "field" in
+         let g := fresh "g" in
+         let f := fresh "f" in 
+         evar (field: Type);
+         evar (g: type_new_state -> field);
+         evar (f : field -> type_field);
+         setoid_replace (X r_o) with (f (g r_n)) by (subst g; subst f; eauto with matrices);
+         subst field;
+         subst g;
+         subst f
+    end.
 Ltac end_template :=
     repeat refine blocked ret; try (simplify with monad laws); finish honing.
 Ltac Cholesky_Optimizer :=
@@ -47,17 +49,50 @@ Ltac Optimize1 :=
   [repeat Optimizers; try (erewrite refine_smaller; [ | intros; Optimize1; higher_order_reflexivity]);
   higher_order_reflexivity | ]; simpl.
 
-Ltac singleStepUnfolding :=
-  repeat ((erewrite decompose_computation_left by eauto) || (erewrite decompose_computation_right by eauto) || (erewrite decompose_computation_left_unit by eauto) ||(erewrite decompose_computation_right_unit by eauto) || (erewrite decompose_computation_unit_unit by eauto) ||  (erewrite decompose_computation_unit_compose by eauto)) .
+ Ltac singleStepUnfolding :=
+      match goal with
+      | [ |- refine (_ <<- ?op ?A; _) _ ] =>
+        tryif (separable A) then erewrite decompose_1; eauto
+        else fail 0
+      | [ |- refineEquiv (_ <<- ?op ?A; _) _ ] =>
+        tryif (separable A) then erewrite decompose_1; eauto
+        else fail 0
+      | [ |- refine (_ <<- ?op ?A ?B; _) _ ] =>
+        tryif (first [separable A | separable B]) then erewrite decompose_2; eauto
+        else fail 0
+      | [ |- refineEquiv (_ <<- ?op ?A ?B; _) _ ] =>
+        tryif (first [separable A | separable B]) then erewrite decompose_2; eauto
+        else fail 0
+      | [ |- refine (_ <<- ?op ?A ?B ?C; _) _ ] =>
+        tryif (first [separable A | separable B | separable C]) then erewrite decompose_3; eauto
+        else fail 0
+      | [ |- refineEquiv (_ <<- ?op ?A ?B ?C; _) _ ] =>
+        tryif (first [separable A | separable B | separable C]) then erewrite decompose_3; eauto
+        else fail 0            
+      | [ |- refine (_ <<- if ?A then ?B else ?C; _) _] =>
+        tryif (first [separable A | separable B | separable C]) then erewrite decompose_if; eauto
+        else fail 0
+      | [ |- refineEquiv (_ <<- if ?A then ?B else ?C; _) _] =>
+        tryif (first [separable A | separable B | separable C]) then erewrite decompose_if; eauto
+        else fail 0            
+      end.
 
 Ltac Unfolding :=
-   etransitivity;
-   [singleStepUnfolding;
-    try
-      (erewrite refine_smaller;
-       [ | intros;  Unfolding; higher_order_reflexivity ]);
-    higher_order_reflexivity| ];
-   simpl.
+  etransitivity;
+  [repeat singleStepUnfolding;
+   repeat match goal with
+   | [ |- refine (_ <<- ?A; _) _] =>
+     tryif (separable A) then fail 0
+     else rewrite refine_substitute
+   | [ |- refineEquiv (_ <<- ?A; _) _] =>
+     tryif (separable A) then fail 0
+     else rewrite refine_substitute               
+   | _ =>  idtac
+   end;
+   try (erewrite refine_smaller;
+      [ | intros;  Unfolding; higher_order_reflexivity ]);
+   higher_order_reflexivity| ];
+  simpl.
 
 Ltac converts_to_blocked_ret :=
   etransitivity;
@@ -119,12 +154,14 @@ Ltac RemoveUseless :=
   Ltac match_formula X larger_layer:=
     lazymatch X with
     | ?A ?B =>
-      tryif (is_variable B) then
+      tryif (first [is_variable B | (unify B 0) | (unify B 1)]) then
         match_formula A (S O)
       else magic B
     | _ =>
       tryif (unify larger_layer (S O)) then fail 0
       else tryif (unify X ()) then fail 0
+      else tryif (unify X 0) then fail 0
+      else tryif (unify X 1) then fail 0
       else tryif (is_variable X) then fail 0
       else  magic X
     end.
@@ -159,6 +196,7 @@ Ltac RemoveUseless :=
       substitute_all;
       repeat clear_a_Meq_pick r_o r_n;
       guess_pick_val r_o r_n;
+      clearit r_o r_n;
       try simplify with monad laws;
       higher_order_reflexivity;
       simpl | ];

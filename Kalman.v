@@ -12,7 +12,7 @@ Require Import
         FiatHelpers
         MyHelpers
         MatrixLemmas
-        optimize_single_method.
+        optimize_ADT.
 
 Section KalmanFilter.
   Variable n : nat.
@@ -62,53 +62,11 @@ Section KalmanFilter.
   Definition SharpenedKalman :
     FullySharpened KalmanSpec.
   Proof.
-    start sharpening ADT.
-    unfold StringId, StringId0, StringId1.
-
-    Open Scope string_scope.
-
-    hone representation using use_a_sparse_P;
-      unfold use_a_sparse_P in *; cleanup; try reveal_body_evar.
-
-      {
-        Optimize_single_method r_o r_n.
-      }
-
-      {
-        Optimize_single_method r_o r_n.
-      }
-      
-      {
-        Optimize_single_method r_o r_n.
-      }
-
-      cbv beta.
-      expose_rets_hidden_under_blets. 
-      finish_SharpeningADT_WithoutDelegation.
-
+    Optimize_ADT KalmanState SparseKalmanState use_a_sparse_P.
   Defined.
-
+ 
   Definition KalmanImpl : ComputationalADT.cADT KalmanSig :=
     Eval simpl in projT1 SharpenedKalman.
 
   Print KalmanImpl.
-
-  (* Lemma refine_first : *)
-  (*   forall {A B} (a a': Comp A) c (f: A -> Comp B), *)
-  (*     refine a' a -> *)
-  (*     refine (Bind a f) c -> *)
-  (*     refine (Bind a' f) c. *)
-  (* Proof. *)
-  (*   intros. *)
-  (*   etransitivity. *)
-  (*   apply refine_under_bind_both; eauto. *)
-  (*   reflexivity. *)
-  (*   assumption. *)
-  (* Qed. *)
-
-  (* Ltac maybe_unfold_in haystack needle := *)
-  (*   match constr:(tt) with *)
-  (*   | _ => let e := (eval unfold needle in haystack) in e *)
-  (*   | _ => constr:(haystack) *)
-  (*   end. *)
 End KalmanFilter.

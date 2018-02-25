@@ -16,4 +16,5 @@ MyHelpers.v
 optimize_ADT.v
 Kalman.v
 AlphaBeta.v
+Perceptron.v
 KalmanExtraction.v

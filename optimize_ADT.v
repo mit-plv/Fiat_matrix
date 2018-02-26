@@ -10,9 +10,18 @@ Require Import Coq.Strings.String.
 Ltac clearit r_o r_n :=
     try apply Densify_correct_rev;
     repeat  match goal with
-       | [ |- _] => erewrite if_cond_helper; [ | progress clearit r_o r_n; reflexivity | progress clearit r_o r_n; reflexivity]                    
+       | [ |- _] => erewrite if_cond_helper; [ | progress clearit r_o r_n; reflexivity | progress clearit r_o r_n; reflexivity]
+       | [ H: ?X r_o @= _ _ |- refine (ret (_, ?A)) _] => 
+          progress (
+            let x := type of A in
+            let pp := fresh "pp" in 
+            evar (pp: x);
+            replace (A) with (pp);
+            [| unfold pp; rewrite H; reflexivity]; subst pp
+          )                    
        | [ H: ?X r_o @= _ _ |- context [?X r_o]] => rewrite H; auto
        | [ H: ?X r_o = _ _ |- context [?X r_o]] => rewrite H; auto
+       
        | [ |- context [?X r_o] ] =>
          let type_field := type of (X r_o) in
          let type_new_state := type of (r_n) in
@@ -198,6 +207,7 @@ Ltac RemoveUseless :=
       guess_pick_val r_o r_n;
       clearit r_o r_n;
       try simplify with monad laws;
+      clearit r_o r_n;
       higher_order_reflexivity;
       simpl | ];
 

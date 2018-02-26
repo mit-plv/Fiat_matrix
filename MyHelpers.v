@@ -1,6 +1,7 @@
 Require Import PeanoNat.
 Require Import List.
 Require Import Coq.omega.Omega.
+Require Import FiatHelpers.
 
 Section ListHelpers.
   Lemma nth_default_0: forall A: Type, forall a b : A, forall l: list A, 
@@ -73,3 +74,41 @@ Ltac is_variable A :=
     let eq := fresh "eq" in
     assert (eq: A = B) by auto; clear eq
   end.
+
+Ltac is_constant a :=
+  let a := (eval compute in a) in
+  assert (a = a) by
+      (clear;
+       lazymatch goal with
+       | [ H: _ |- _ ] => fail "NC"
+       | _ => idtac
+       end;
+       reflexivity).
+
+Ltac is_function a :=
+  let b := type of (a) in
+  match b with
+  | ?A -> ?B => idtac
+  end.
+
+Ltac separable a := 
+  tryif (is_constant a) then fail 0 
+  else tryif (is_variable a) then fail 0           
+    else tryif (is_function a) then fail 0
+      else idtac.
+
+Ltac reveal_body_evar :=
+  match goal with
+  | [ H := ?x : methodType _ _ _ |- _ ] => is_evar x; progress unfold H
+                                                             (* | [ H := ?x : constructorType _ _ |- _ ] => is_evar x; progress unfold H *)
+  end.
+    
+Ltac cleanup :=
+  repeat match goal with
+         | [ H: _ /\ _ |- _ ] => destruct H
+         | _ => progress subst
+         | _ => progress (cbv iota)
+         | _ => progress simpl
+         | _ => simplify with monad laws
+         end.
+

@@ -502,7 +502,7 @@ Section SpecialMatrices.
     intros; elim_bool; intros; unfold row_mul; rewrite Mtimes_correct; auto; simpl.
     - apply sum_single with (x0 := i); auto.
       + intros. rewrite Mfill_correct; auto.
-        elim_bool; auto; simpl; subst; try ring; try tauto. 
+        elim_bool; auto; simpl; subst; try ring; try tauto; try omega. 
       + rewrite Mfill_correct; auto.
         elim_bool; auto; simpl; try ring; subst; try tauto.
     - apply sum_single with (x0 := i); auto.

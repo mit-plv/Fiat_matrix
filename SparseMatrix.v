@@ -10,10 +10,11 @@ Require Import MyHelpers.
 (** *Row major matrix, but for each row, we only store some non-zero elements. 
      in increased index order; efficient storage but not efficient multiplication *)
 
+Definition SparseMatrix_t A := list (list (nat * A)).
 
 Section A.
- Variable ME : MatrixElem.
- Add Field Afield : MEfield.
+  Context {ME : MatrixElem}.
+  Add Field Afield : MEfield.
 
 Fixpoint get_v {ME: MatrixElem} (l: list (nat * MEt)) (k : nat) := 
   match l with
@@ -21,7 +22,7 @@ Fixpoint get_v {ME: MatrixElem} (l: list (nat * MEt)) (k : nat) :=
   | (a, b) :: l' => if (Nat.eqb k a) then b +e get_v l' k else get_v l' k
   end. 
 
-Definition SparseMatrix_get {ME: MatrixElem} m n (M: list (list (nat * MEt))) (i j : nat) := 
+Definition SparseMatrix_get {ME: MatrixElem} m n (M: SparseMatrix_t MEt) (i j : nat) := 
 if andb (i <? m) (j <? n) then
   get_v (nth_default nil M i) j
 else
@@ -146,33 +147,33 @@ Proof.
         apply IHk; try omega.
 Qed.
 
-Fixpoint v_v_mul_le {ME: MatrixElem} (m n p i j k: nat) (v : list (nat * MEt)) (M2: list (list (nat * MEt))) :=
+Fixpoint v_v_mul_le {ME: MatrixElem} (m n p i j k: nat) (v : list (nat * MEt)) (M2: SparseMatrix_t MEt) :=
   match v with 
   | nil => MEzero
   | (t, a)::l' => if (t <? k) then (a *e SparseMatrix_get n p M2 t j) +e v_v_mul_le m n p i j k l' M2
                   else v_v_mul_le m n p i j k l' M2
   end. 
 
-Fixpoint v_v_mul_eq {ME: MatrixElem} (m n p i j k: nat) (v : list (nat * MEt)) (M2: list (list (nat * MEt))) :=
+Fixpoint v_v_mul_eq {ME: MatrixElem} (m n p i j k: nat) (v : list (nat * MEt)) (M2: SparseMatrix_t MEt) :=
   match v with 
   | nil => MEzero
   | (t, a)::l' => if (beq_nat t k) then (a *e SparseMatrix_get n p M2 t j) +e v_v_mul_eq m n p i j k l' M2
                   else v_v_mul_eq m n p i j k l' M2
   end. 
 
-Fixpoint v_matrix_mul {ME: MatrixElem} (m n p i j: nat) (M1 M2: list (list (nat * MEt))) :=
+Fixpoint v_matrix_mul {ME: MatrixElem} (m n p i j: nat) (M1 M2: SparseMatrix_t MEt) :=
   match j with 
   | 0 => nil
   | S j' => (j', v_v_mul_le m n p i j' n (nth_default nil M1 i) M2) :: v_matrix_mul m n p i j' M1 M2
   end. 
 
-Fixpoint SparseMatrix_mul' {ME: MatrixElem} (m n p k: nat) (M1 M2: list (list (nat * MEt))):= 
+Fixpoint SparseMatrix_mul' {ME: MatrixElem} (m n p k: nat) (M1 M2: SparseMatrix_t MEt):= 
   match k with 
   | 0 => @nil(list  (nat * MEt))
   | S k' => v_matrix_mul m n p (m - k) p M1 M2::SparseMatrix_mul' m n p k' M1 M2
   end. 
 
-Definition SparseMatrix_mul {ME: MatrixElem} (m n p: nat) (M1 M2: list (list (nat * MEt))) :=
+Definition SparseMatrix_mul {ME: MatrixElem} (m n p: nat) (M1 M2: SparseMatrix_t MEt) :=
   @SparseMatrix_mul' ME m n p m M1 M2.
 
 Lemma v_v_mul_induct: forall m n p i j k v M2, 
@@ -294,12 +295,12 @@ Qed.
 End A. 
 
 Definition SparseMatrix_fill {ME} m n f :=
-  Generate ME m n f.
+  @Generate ME m n f.
 Definition SparseMatrix_elementwise_op {ME: MatrixElem} m n op m1 m2 :=
-  Generate ME m n (fun i j => op (SparseMatrix_get m n m1 i j) (SparseMatrix_get m n m2 i j)).
+  @Generate ME m n (fun i j => op (SparseMatrix_get m n m1 i j) (SparseMatrix_get m n m2 i j)).
 
 Definition SparseMatrix {ME: MatrixElem} : Matrix.
- unshelve eapply {| Mt m n := list (list (nat * MEt));
+ unshelve eapply {| Mt m n := SparseMatrix_t MEt;
                     Mget := SparseMatrix_get;
                     Mtimes := SparseMatrix_mul;
                     Mfill := SparseMatrix_fill;
@@ -321,11 +322,11 @@ Definition SparseMatrix {ME: MatrixElem} : Matrix.
   simpl.
   intros. 
   rewrite generate_get_row_correct; try assumption.
-  rewrite generate_row_get_element_correct with (m := m); try omega.
+  rewrite generate_row_get_element_correct with (m0 := m); try omega.
   reflexivity.
 
   simpl. intros.
   rewrite generate_get_row_correct; try assumption.
-  rewrite generate_row_get_element_correct with (m := m); try omega.
+  rewrite generate_row_get_element_correct with (m0 := m); try omega.
   reflexivity. 
 Defined.

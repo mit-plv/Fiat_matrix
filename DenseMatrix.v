@@ -7,27 +7,28 @@ Require Import Coq.setoid_ring.Ring.
 Require Import Coq.setoid_ring.Ring_theory.
 Require Import MyHelpers. 
 
+Definition DenseMatrix_t A := list A.
+
 Section A.
- Variable ME : MatrixElem.
+ Context {ME : MatrixElem}.
  Add Field Afield : MEfield.
 
-
- Definition DenseMatrix_get {ME: MatrixElem} (m n: nat) (M: list MEt) (i j : nat) :=
+ Definition DenseMatrix_get (m n: nat) (M: DenseMatrix_t MEt) (i j : nat) :=
    nth_default MEzero M (i * n + j). 
 
- Fixpoint Generate {ME: MatrixElem} (m n k: nat) (f: nat -> MEt) :=
+ Fixpoint Generate (m n k: nat) (f: nat -> MEt) :=
    match k with 
    | 0 => @nil(MEt)
    | S k' => (f (m * n - k)) :: Generate m n k' f
    end.
 
- Definition DenseMatrix_mul {ME: MatrixElem} (m n p: nat) (M1 M2: list MEt):=
+ Definition DenseMatrix_mul (m n p: nat) (M1 M2: DenseMatrix_t MEt):=
    Generate m p (m * p) (fun k => (sum n (fun i => DenseMatrix_get m n M1 (Nat.div k  p) i *e DenseMatrix_get n p M2 i (Nat.modulo k p)))).
 
- Definition Matrix_elem_op {ME: MatrixElem} (op: MEt -> MEt -> MEt) (m n: nat) (M1 M2: list MEt):=
+ Definition Matrix_elem_op (op: MEt -> MEt -> MEt) (m n: nat) (M1 M2: DenseMatrix_t MEt):=
    Generate m n (m * n) (fun k => op (DenseMatrix_get m n M1 (Nat.div k n) (Nat.modulo k n)) (DenseMatrix_get m n M2 (Nat.div k n) (Nat.modulo k n))).
 
- Lemma Generate_index: forall {ME: MatrixElem} (m n l i: nat) (f: nat -> MEt),
+ Lemma Generate_index: forall (m n l i: nat) (f: nat -> MEt),
      i < l -> 
      nth_default MEzero (Generate m n l f) i = f(m * n + i - l).
  Proof.
@@ -43,7 +44,7 @@ Section A.
        reflexivity.
  Qed. 
 
- Corollary Generate_get: forall {ME: MatrixElem} (m n i j: nat) (f: nat -> MEt),
+ Corollary Generate_get: forall (m n i j: nat) (f: nat -> MEt),
      i < m -> j < n -> 
      DenseMatrix_get m n (Generate m n (m * n) f) i j = f(i * n + j).
  Proof.
@@ -73,7 +74,7 @@ Definition DenseMatrix_fill {ME: MatrixElem} m n f := Generate m n (m * n) (fun 
 Definition DenseMatrix_elementwise_op {ME: MatrixElem} m n op m1 m2 := Matrix_elem_op op m n m1 m2.
 
 Definition DenseMatrix {ME: MatrixElem} : Matrix.
- unshelve eapply {| Mt m n := list MEt;
+ unshelve eapply {| Mt m n := DenseMatrix_t MEt;
                     Mget := DenseMatrix_get;
                     Mtimes := DenseMatrix_mul;
                     Mfill := DenseMatrix_fill;

@@ -153,185 +153,6 @@ Ltac finish_SharpeningADT_WithoutDelegation ::=
 (* ========================= *)
 Require Import Fiat.Computation.Refinements.Tactics. 
 
-Lemma decompose_computation_left {A B C D E F}:
-  forall (a: A) (b: B) (d: D) (e: E) (op2: A -> B -> C) (op: C -> D -> E) (com: E -> Comp F), 
-    e = op (op2 a b) d -> refineEquiv (y <<- e; com(y)) (  x <<- op2 a b; y <<- op x d; com(y)) .
-Proof.
-  intros.
-  split.
-  - intros.
-    rewrite H.
-    repeat intro.
-    computes_to_inv.
-    rewrite blocked_ret_is_ret in *.
-    econstructor.
-    econstructor.
-    + rewrite <- H.
-      econstructor.  
-    + unfold Ensembles.In.
-      inversion H0. inversion H0'.
-      rewrite H1 in *.
-      rewrite H2 in *.
-      rewrite H.
-      assumption. 
-  - intros.
-    rewrite H.
-    repeat intro.
-    computes_to_inv.
-    rewrite blocked_ret_is_ret in *.
-    econstructor.
-    econstructor.
-    + unfold Ensembles.In.
-      econstructor.
-    + econstructor.
-      split; eauto.
-Qed.
-
-
-Lemma decompose_computation_right {A B C D E F}:
-  forall (a: A) (b: B) (d: D) (e: E) (op2: A -> B -> C) (op: D -> C -> E) (com: E -> Comp F), 
-    e = op d (op2 a b) -> refineEquiv (y <<- e; com(y)) (  x <<- op2 a b; y <<- op d x; com(y)) .
-Proof.
-  intros.
-  split.
-  - intros.
-    rewrite H.
-    repeat intro.
-    computes_to_inv.
-    rewrite blocked_ret_is_ret in *.
-    econstructor.
-    econstructor.
-    + rewrite <- H.
-      econstructor.  
-    + unfold Ensembles.In.
-      inversion H0. inversion H0'.
-      rewrite H1 in *.
-      rewrite H2 in *.
-      rewrite H.
-      assumption. 
-  - intros.
-    rewrite H.
-    repeat intro.
-    computes_to_inv.
-    rewrite blocked_ret_is_ret in *.
-    econstructor.
-    econstructor.
-    + unfold Ensembles.In.
-      econstructor.
-    + econstructor.
-      split; eauto.
-Qed.
-
-
-Lemma decompose_computation_right_unit {A B C D E}:
-  forall (a: A) (b: B) (d: D) (op2: A -> C) (op: B -> C -> D) (com: D -> Comp E), 
-    d = op b (op2 a) -> refineEquiv (y <<- d; com(y)) (  x <<- op2 a; y <<- op b x; com(y)) .
-Proof.
-  intros.
-  split.
-  - intros.
-    rewrite H.
-    repeat intro.
-    computes_to_inv.
-    rewrite blocked_ret_is_ret in *.
-    econstructor.
-    econstructor.
-    + rewrite <- H.
-      econstructor.  
-    + unfold Ensembles.In.
-      inversion H0. inversion H0'.
-      rewrite H1 in *.
-      rewrite H2 in *.
-      rewrite H.
-      assumption. 
-  - intros.
-    rewrite H.
-    repeat intro.
-    computes_to_inv.
-    rewrite blocked_ret_is_ret in *.
-    econstructor.
-    econstructor.
-    + unfold Ensembles.In.
-      econstructor.
-    + econstructor.
-      split; eauto.
-Qed.
-
-
-Lemma decompose_computation_left_unit {A B C D E}:
-  forall (a: A) (b: B) (d: D) (op2: A -> C) (op: C -> B -> D) (com: D -> Comp E), 
-    d = op (op2 a) b -> refineEquiv (y <<- d; com(y)) (  x <<- op2 a; y <<- op x b; com(y)) .
-Proof.
-  intros.
-  split.
-  - intros.
-    rewrite H.
-    repeat intro.
-    computes_to_inv.
-    rewrite blocked_ret_is_ret in *.
-    econstructor.
-    econstructor.
-    + rewrite <- H.
-      econstructor.  
-    + unfold Ensembles.In.
-      inversion H0. inversion H0'.
-      rewrite H1 in *.
-      rewrite H2 in *.
-      rewrite H.
-      assumption. 
-  - intros.
-    rewrite H.
-    repeat intro.
-    computes_to_inv.
-    rewrite blocked_ret_is_ret in *.
-    econstructor.
-    econstructor.
-    + unfold Ensembles.In.
-      econstructor.
-    + econstructor.
-      split; eauto.
-Qed.
-
-
-Lemma decompose_computation_unit_unit {A C D E}:
-  forall (a: A) (d: D) (op2: A -> C) (op: C -> D) (com: D -> Comp E), 
-    d = op (op2 a) -> refineEquiv (y <<- d; com(y)) (  x <<- op2 a; y <<- op x; com(y)) .
-Proof.
-  intros; split.
-  - repeat intro. computes_to_inv. rewrite blocked_ret_is_ret in *.
-    repeat (econstructor; try eauto).
-    unfold Ensembles.In.
-    inversion H0. inversion H0'.
-    rewrite <- H1.
-    rewrite H.
-    reflexivity.
-  - intros. rewrite H.
-    repeat intro.
-    computes_to_inv.
-    rewrite blocked_ret_is_ret in *.
-    repeat (econstructor; try eauto).
-Qed.
-
-
-Lemma decompose_computation_unit_compose {A B C D E}:
-  forall (a: A) (b: B) (d: D) (op2: A -> B -> C) (op: C -> D) (com: D -> Comp E), 
-    d = op (op2 a b) -> refineEquiv (y <<- d; com(y)) (x <<- op2 a b; y <<- op x; com(y)) .
-Proof.
-  intros; split.
-  - repeat intro. computes_to_inv. rewrite blocked_ret_is_ret in *.
-    repeat (econstructor; try eauto).
-    unfold Ensembles.In.
-    inversion H0. inversion H0'.
-    rewrite H.
-    rewrite <- H1.
-    reflexivity. 
-  - intros. rewrite H.
-    repeat intro.
-    computes_to_inv.
-    rewrite blocked_ret_is_ret in *.
-    repeat (econstructor; try eauto).
-Qed.
-
 Lemma refine_smaller (A B: Type) (C: A) (f g: A -> Comp B):
         (forall x, refineEquiv (f x) (g x))
         -> refineEquiv (x <<- C; f x) (x <<- C; g x).
@@ -468,110 +289,62 @@ Proof.
     assumption.
 Qed.
 
-(* Ltac add_let_in_head2 term new_head expr :=
-  let rec aux head_and_args restore_args_fn :=
-      lazymatch head_and_args with
-      | ?term ?arg => aux term (fun term' => restore_args_fn (term' arg))
-      | ?head => constr:(x <<- expr; restore_args_fn (new_head x))
-      end in
-  let tt := type of term in
-  let term' := aux term (fun y: tt => y) in
-  let reduced := (eval cbv beta in term') in
-  constr:(reduced).
 
-Ltac refine_blocked_ret_cleanup2 hd' const :=
-  cbv beta;
-  unfold hd' in *; clear hd';
-  let bvar := fresh "bvar" in
-  let bvar_eqn := fresh "bvar_eqn" in
-  set const as bvar;
-  assert (NoSubst (bvar = const)) as bvar_eqn by reflexivity;
-  clearbody bvar;
-  etransitivity; [| rewrite refine_substitute; higher_order_reflexivity];
-  etransitivity; [rewrite refine_substitute; higher_order_reflexivity |].
-  
-  
-
-Tactic Notation "refine" "blocked" "ret2" :=
-  lazymatch goal with
-  | [  |- refine (Bind (blocked_ret ?const) _) ?comp] =>
-    let old_evar := head comp in
-    let old_evar_type := type of old_evar in
-    let const_type := type of const in
-    let new_evar := fresh in
-    evar (new_evar: const_type -> old_evar_type);
-    let refined := add_let_in_head2 comp new_evar const in
-    first [ unify comp refined |
-            let aa := args comp in
-            fail 1 "Unification of" comp "and" refined
-                 "failed.  Make sure that" const
-                 "can be written as a function of" aa ];
-    refine_blocked_ret_cleanup2 new_evar const
-  end.
-
-  
-Lemma decompose_function {A B C D}:
-  forall (a: A) (f: A -> C) (g: A -> B) (h: B -> C) (com: C -> Comp D), 
-    f(a) = h(g(a)) -> refineEquiv (y <<- f(a); com(y)) (x <<- g(a); y <<- h(x); com(y)) .
+Lemma decompose_if {B C}:
+  forall (a: bool) (b: B) (c: B) (com: B -> Comp C), 
+    refineEquiv (y <<- if a then b else c; com(y)) (x <<- a; y <<- b; z <<- c; w <<- if x then y else z; com(w)) .
 Proof.
-  intros.
-  split.
-  - intros.
-    rewrite H.
-    repeat intro.
-    
-    computes_to_inv.
-    rewrite blocked_ret_is_ret in *.
-    econstructor.
-    econstructor.
-    + inversion H0. rewrite H1.
-      eassumption.
-    + eassumption.
-  - repeat intro.
-    computes_to_inv.
-    rewrite blocked_ret_is_ret in *. 
-    econstructor.
-    econstructor.
-    + rewrite H in H0.
-      repeat (econstructor; try eauto).
-    + rewrite H in H0.
-      repeat (econstructor; try eauto).
+  intros; split.
+  - repeat intro. computes_to_inv. rewrite blocked_ret_is_ret in *.
+    repeat (econstructor; try eauto).
+    unfold Ensembles.In.
+    inversion H. inversion H'. inversion H''. inversion H'''.
+    reflexivity. 
+  - repeat intro. computes_to_inv. rewrite blocked_ret_is_ret in *.
+    repeat (econstructor; try eauto).
 Qed.
 
 
-Lemma decompose_function2:
-  forall (I O P Q D: Type) (i: I) (f: I -> O) (g: I -> P) (h: I -> Q) (op: P -> Q -> O) (com: O -> Comp D), 
-    f(i) = op (g i) (h i) -> refineEquiv (y <<- f(i); com(y)) (x0 <<- g(i); x1 <<- h(i); y <<- op x0 x1; com(y)) .
-
+Lemma decompose_1 {A B C} :
+  forall (a : A) (op: A -> B) (com: B -> Comp C),
+    refineEquiv (x <<- op a; com(x)) (y <<- a; x <<- op y; com x).
 Proof.
   intros; split.
-  - repeat intro.
-    computes_to_inv.
-    rewrite blocked_ret_is_ret in *.
-    rewrite H.
-    econstructor.
-    econstructor.
-    + eauto. inversion H0. inversion H0'. 
-      rewrite H1, H2.
-      eassumption.
-    + eassumption.
-  - repeat intro.
-    computes_to_inv.
-    rewrite blocked_ret_is_ret in *.
-    econstructor.
-    econstructor.
-    + rewrite H in H0.
-      unfold  Ensembles.In.
-      eexists.
-    + econstructor.
-      econstructor.
-      * eexists.
-      * econstructor.
-        econstructor.
-        -- exists.
-        -- rewrite <- H.
-           unfold  Ensembles.In.
-           inversion H0.
-           rewrite H1.
-           assumption.
-Qed.*)
+  - repeat intro. computes_to_inv. rewrite blocked_ret_is_ret in *.
+    repeat (econstructor; try eauto).
+    unfold Ensembles.In.
+    inversion H. inversion H'.
+    reflexivity.
+  - repeat intro. computes_to_inv. rewrite blocked_ret_is_ret in *.
+    repeat (econstructor; try eauto).
+Qed.
+
+Lemma decompose_2 {A B C D} :
+  forall (a : A) (b: B) (op: A -> B -> C) (com: C -> Comp D),
+    refineEquiv (x <<- op a b; com(x)) (y <<- a; z <<- b; x <<- op y z; com x).
+Proof.
+  intros; split.
+  - repeat intro. computes_to_inv. rewrite blocked_ret_is_ret in *.
+    repeat (econstructor; try eauto).
+    unfold Ensembles.In.
+    inversion H. inversion H'.
+    inversion H''.
+    reflexivity.
+  - repeat intro. computes_to_inv. rewrite blocked_ret_is_ret in *.
+    repeat (econstructor; try eauto).
+Qed.
+
+Lemma decompose_3 {A B C D E} :
+  forall (a : A) (b: B) (c: C) (op: A -> B -> C -> D) (com: D -> Comp E),
+    refineEquiv (x <<- op a b c; com(x)) (x0 <<- a; x1 <<- b; x2 <<- c; x <<- op x0 x1 x2; com x).
+Proof.
+  intros; split.
+  - repeat intro. computes_to_inv. rewrite blocked_ret_is_ret in *.
+    repeat (econstructor; try eauto).
+    unfold Ensembles.In.
+    inversion H. inversion H'. inversion H''.
+    inversion H'''. 
+    reflexivity.
+  - repeat intro. computes_to_inv. rewrite blocked_ret_is_ret in *.
+    repeat (econstructor; try eauto).
+Qed.

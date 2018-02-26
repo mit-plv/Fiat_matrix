@@ -40,19 +40,18 @@ Section Perceptron.
 
       Def Constructor1 "Init" (init_state: THETA): rep := ret init_state,,
 
-      Def Method1 "Predict" (r : rep) (x: Vt n) : rep * (MEt) :=
-        ttt <<- r.(theta);
-        ans <<- Mget ttt 0 0;
+      Def Method1 "Predict" (r : THETA) (x: Vt n) : rep * (MEt) :=
+        ans <<- (Mget ((transpose (r.(theta))) @* x) 0 0) +e r.(theta0);
         ret (r, ans),
 
-        Def Method2 "Update" (r : THETA) (x: Vt n) (y: MEt): rep * unit :=
-          tr <<- transpose r.(theta);
-          prod <<- tr @* x;
-          ans <<- Mget prod 0 0 +e r.(theta0);
-          neq <<- if (eqq ans y) then 0 else 1;
-          theta' <<- if (neq =? 1) then r.(theta) @+ x else r.(theta);
-          theta0' <<- if (neq =? 1) then r.(theta0) +e y else r.(theta0); 
-	  ret ({|theta := theta'; theta0 := theta0'|}, tt)
+      Def Method2 "Update" (r : THETA) (x: Vt n) (y: MEt): rep * unit :=
+        tr <<- transpose r.(theta);
+        prod <<- tr @* x;
+        ans <<- Mget prod 0 0 +e r.(theta0);
+        neq <<- if eqq ans y then 0 else 1;
+        theta' <<- if neq =? 1 then r.(theta) @+ x else r.(theta);
+        theta0' <<- if neq =? 1 then r.(theta0) +e y else r.(theta0); 
+        ret ({|theta := theta'; theta0 := theta0'|}, tt)
         }%methDefParsing.
   
   Record THETA_ :=

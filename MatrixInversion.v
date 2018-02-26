@@ -1089,6 +1089,7 @@ Section MatrixInversion.
       + intros.
         destruct (k =? n - S i) eqn: eq; urgh.
         * simpl in H0.
+          rewrite eq. (* Needed in 8.6 *)
           urgh.
         * apply IHi; try omega.
           simpl in H0.

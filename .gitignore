@@ -7,3 +7,4 @@
 *.v.d
 Makefile.coq
 _build/
+/Makefile.coq.conf

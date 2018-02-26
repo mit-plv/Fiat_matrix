@@ -43,11 +43,11 @@ Section MatrixInversion.
     contradiction.
   Qed.
 
-  Definition I := I n E M.
-  Definition e := e n E M. 
-  Definition row_mul := row_mul n E M.
-  Definition row_add_to_row := row_add_to_row n E M.
-  Definition swap := swap n E M.
+  Definition I := @I n E M.
+  Definition e := @e n E M. 
+  Definition row_mul := @row_mul n E M.
+  Definition row_add_to_row := @row_add_to_row n E M.
+  Definition swap := @swap n E M.
   
   Definition invertible (M : Mt n n) :=
     exists M', M @* M' @= I /\ M' @* M @= I. 
@@ -1089,6 +1089,7 @@ Section MatrixInversion.
       + intros.
         destruct (k =? n - S i) eqn: eq; urgh.
         * simpl in H0.
+          rewrite eq. (* Needed in 8.6 *)
           urgh.
         * apply IHi; try omega.
           simpl in H0.

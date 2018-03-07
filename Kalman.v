@@ -30,6 +30,9 @@ Section KalmanFilter.
   (* log of 2*pi *)
   Axiom log_two_pi : MEt.
   
+  Add Parametric Morphism: (logdet)
+      with signature (Meq (n:=n)(m:=n)) ==> (eq) as logdet_mor.
+  Admitted.
 
   Record KalmanState :=
     { x : Vt n;

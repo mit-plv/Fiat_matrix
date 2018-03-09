@@ -148,8 +148,8 @@ Section KalmanExtraction.
     ltac:(simplify (CallMethod (KalmanImpl n) "Predict" r F B Q u)).
 
   Definition KalmanUpdate {n} (r: rep n) (H: SDM n) (R: SDM n) (z: Vt n)
-    : rep n :=
-    ltac:(simplify (fst (CallMethod (KalmanImpl n) "Update" r H R z))).
+    : rep n * MEt :=
+    ltac:(simplify (CallMethod (KalmanImpl n) "Update" r H R z)).
 End KalmanExtraction.
 
 (*

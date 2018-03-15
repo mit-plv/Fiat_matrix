@@ -64,6 +64,7 @@ Extract Inlined Constant float_times => "KalmanAxioms.float_times".
 Extract Inlined Constant float_div => "KalmanAxioms.float_div".
 Extract Inlined Constant float_inv => "KalmanAxioms.float_inv".
 Extract Inlined Constant float_eq_dec => "KalmanAxioms.float_eq_dec".
+Extract Inlined Constant log_two_pi => "KalmanAxioms.log_two_pi".
 
 Extract Inlined Constant Cholesky_DC => "KalmanAxioms.cholesky_DC".
 Extract Inlined Constant dense_sparse_mul_to_sparse => "KalmanAxioms.dense_sparse_mul_to_sparse".
@@ -71,6 +72,9 @@ Extract Inlined Constant sparse_dense_mul => "KalmanAxioms.sparse_dense_mul".
 Extract Inlined Constant dense_sparse_mul => "KalmanAxioms.dense_sparse_mul".
 Extract Inlined Constant solveR_upper => "KalmanAxioms.solveR_upper".
 Extract Inlined Constant solveR_lower => "KalmanAxioms.solveR_lower".
+
+Extract Inlined Constant logdet => "KalmanAxioms.logdet".
+Extract Inlined Constant inversion => "KalmanAxioms.inversion".
 
 (** * Constants that we want to implement in OCaml **)
 

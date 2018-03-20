@@ -14,8 +14,18 @@ Require Import
         MatrixLemmas
         optimize_ADT.
 
+(* These operations need to be implemented. *)
+(* log of the determinant of a matrix *)
+Axiom logdet : forall {ME: MatrixElem} {n}, SDM n -> MEt.
+(* log of 2*pi *)
+Axiom log_two_pi : forall {ME: MatrixElem}, MEt.
+
+Add Parametric Morphism ME n: (@logdet ME n)
+    with signature (Meq (n:=n) (m:=n)) ==> (eq) as logdet_mor.
+Admitted.
+
 Section KalmanFilter.
-  Variable n : nat.
+  Variable m n : nat.
   Context {ME : MatrixElem}.
 
   Fixpoint nat_to_MEt (n : nat) : MEt :=
@@ -23,16 +33,6 @@ Section KalmanFilter.
   | 0 => e0
   | S n' => e1 +e nat_to_MEt n'
   end.
-
-  (* These operations need to be implemented. *)
-  (* log of the determinant of a matrix *)
-  Axiom logdet : SDM n -> MEt.
-  (* log of 2*pi *)
-  Axiom log_two_pi : MEt.
-  
-  Add Parametric Morphism: (logdet)
-      with signature (Meq (n:=n)(m:=n)) ==> (eq) as logdet_mor.
-  Admitted.
 
   Record KalmanState :=
     { x : Vt n;
@@ -58,13 +58,13 @@ Section KalmanFilter.
         pp <- {P | P @= p'};
         ret (r, {|x := xx; P := pp|}),
 
-      Def Method3 "Update" (r : rep) (H: SDM n) (R: SDM n) (z: Vt n) : rep * MEt :=
-        y' <<- z &- H &* r.(x);
+      Def Method3 "Update" (r : rep) (H: Mt (Matrix := DenseMatrix) m n) (R: SDM n) (z: Vt m) : rep * MEt :=
+        y' <<- z &- H @* r.(x);
         S' <<- H @* r.(P) @* transpose(H) @+ R;
         K' <<- r.(P) @* transpose(H) @* inversion(S');
-        x' <<- r.(x) &+ K' &* y';
+        x' <<- r.(x) &+ K' @* y';
         p' <<- (Id @- K' @* H) @* r.(P);
-        garbage <<- K' @* K' @+ S';
+        (*garbage <<- K' @* K' @+ S';*)
         ret ({| x := x'; P := p' |}, e0 -e (e1 /e (e1 +e e1)) *e (Mget (transpose y' @* inversion S' @* y') 0 0 +e logdet S' +e nat_to_MEt n *e log_two_pi))
     }%methDefParsing.
 

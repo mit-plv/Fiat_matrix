@@ -140,20 +140,20 @@ Opaque blocked_let.
 Section KalmanExtraction.
   Existing Instance MEfloat.
 
-  Definition rep n : Type :=
-    ltac:(simplify (ComputationalADT.cRep (KalmanImpl n))).
+  Definition rep m n : Type :=
+    ltac:(simplify (ComputationalADT.cRep (KalmanImpl m n))).
 
-  Definition KalmanInit {n} (init : KalmanState n)
-    : rep n :=
-    ltac:(simplify (CallConstructor (KalmanImpl n) "Init" init)).
+  Definition KalmanInit {m n} (init : KalmanState n)
+    : rep m n :=
+    ltac:(simplify (CallConstructor (KalmanImpl m n) "Init" init)).
 
-  Definition KalmanPredict {n} (r: rep n) (F: SDM n) (B: SDM n) (Q: SDM n) (u: Vt n)
-    : rep n * KalmanState n :=
-    ltac:(simplify (CallMethod (KalmanImpl n) "Predict" r F B Q u)).
+  Definition KalmanPredict {m n} (r: rep m n) (F: SDM n) (B: SDM n) (Q: SDM n) (u: Vt n)
+    : rep m n * KalmanState n :=
+    ltac:(simplify (CallMethod (KalmanImpl m n) "Predict" r F B Q u)).
 
-  Definition KalmanUpdate {n} (r: rep n) (H: SDM n) (R: SDM n) (z: Vt n)
-    : rep n * MEt :=
-    ltac:(simplify (CallMethod (KalmanImpl n) "Update" r H R z)).
+  Definition KalmanUpdate {m n} (r: rep m n) (H: Mt (Matrix := DenseMatrix) m n) (R: SDM n) (z: Vt m)
+    : rep m n * MEt :=
+    ltac:(simplify (CallMethod (KalmanImpl m n) "Update" r H R z)).
 End KalmanExtraction.
 
 (*

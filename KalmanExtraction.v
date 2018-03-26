@@ -76,6 +76,14 @@ Extract Inlined Constant solveR_lower => "KalmanAxioms.solveR_lower".
 Extract Inlined Constant logdet => "KalmanAxioms.logdet".
 Extract Inlined Constant inversion => "KalmanAxioms.inversion".
 
+Extract Inlined Constant Id => "KalmanAxioms.ident".
+Extract Inlined Constant sparsify => "KalmanAxioms.sparsify".
+Extract Inlined Constant densify => "KalmanAxioms.densify".
+Extract Inlined Constant Vplus => "KalmanAxioms.vplus".
+Extract Inlined Constant Vminus => "KalmanAxioms.vminus".
+Extract Inlined Constant Mplus => "KalmanAxioms.mplus".
+
+
 (** * Constants that we want to implement in OCaml **)
 
 (** This is the shorter, but slightly less efficient version: *)

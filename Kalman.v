@@ -24,6 +24,14 @@ Add Parametric Morphism ME n: (@logdet ME n)
     with signature (Meq (n:=n) (m:=n)) ==> (eq) as logdet_mor.
 Admitted.
 
+Definition Mplus {ME : MatrixElem} {M : Matrix} {m n : nat} :
+  @Mt ME M m n -> @Mt ME M m n -> @Mt ME M m n := Melementwise_op MEplus.
+Infix "@+" := Mplus.
+
+Global Add Parametric Morphism {ME : MatrixElem} {M : Matrix} m n: (Mplus ) with
+      signature (Meq (m:=m)(n:=n)) ==> (Meq (m:=m)(n:=n)) ==> (Meq (m:=m)(n:=n)) as Mplus_mor.
+Admitted.
+
 Section KalmanFilter.
   Variable m n : nat.
   Context {ME : MatrixElem}.

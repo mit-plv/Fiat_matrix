@@ -148,20 +148,24 @@ Opaque blocked_let.
 Section KalmanExtraction.
   Existing Instance MEfloat.
 
+  Definition initS := "Init".
+  Definition predictS := "Predict".
+  Definition updateS := "Update".
+
   Definition rep m n : Type :=
     ltac:(simplify (ComputationalADT.cRep (KalmanImpl m n))).
 
   Definition KalmanInit {m n} (init : KalmanState n)
     : rep m n :=
-    ltac:(simplify (CallConstructor (KalmanImpl m n) "Init" init)).
+    ltac:(simplify (CallConstructor (KalmanImpl m n) initS init)).
 
   Definition KalmanPredict {m n} (r: rep m n) (F: SDM n) (B: SDM n) (Q: SDM n) (u: Vt n)
     : rep m n * KalmanState n :=
-    ltac:(simplify (CallMethod (KalmanImpl m n) "Predict" r F B Q u)).
+    ltac:(simplify (CallMethod (KalmanImpl m n) predictS r F B Q u)).
 
   Definition KalmanUpdate {m n} (r: rep m n) (H: Mt (Matrix := DenseMatrix) m n) (R: SDM n) (z: Vt m)
     : rep m n * MEt :=
-    ltac:(simplify (CallMethod (KalmanImpl m n) "Update" r H R z)).
+    ltac:(simplify (CallMethod (KalmanImpl m n) updateS r H R z)).
 End KalmanExtraction.
 
 (*
